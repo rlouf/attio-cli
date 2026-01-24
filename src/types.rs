@@ -106,6 +106,38 @@ pub struct RecordId {
     pub object_id: Option<String>,
 }
 
+/// Search result from the records search endpoint.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SearchResult {
+    pub id: SearchResultId,
+    #[serde(default)]
+    pub record_text: Option<String>,
+    #[serde(default)]
+    pub object_slug: Option<String>,
+}
+
+/// Search result ID.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SearchResultId {
+    pub record_id: String,
+    #[serde(default)]
+    pub object_id: Option<String>,
+}
+
+impl TableRow for SearchResult {
+    fn headers() -> Vec<&'static str> {
+        vec!["RECORD ID", "OBJECT", "TEXT"]
+    }
+
+    fn row(&self) -> Vec<String> {
+        vec![
+            self.id.record_id.clone(),
+            self.object_slug.clone().unwrap_or_else(|| "-".to_string()),
+            self.record_text.clone().unwrap_or_else(|| "-".to_string()),
+        ]
+    }
+}
+
 impl TableRow for Record {
     fn headers() -> Vec<&'static str> {
         vec!["ID", "NAME", "VALUES"]

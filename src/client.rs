@@ -47,13 +47,6 @@ impl AttioClient {
         self.request(Method::PATCH, path, Some(body)).await
     }
 
-    /// Make a DELETE request.
-    pub async fn delete(&self, path: &str) -> Result<()> {
-        let response = self.send(Method::DELETE, path, Option::<()>::None).await?;
-        self.handle_error(response).await?;
-        Ok(())
-    }
-
     /// Internal: make a request and parse the JSON response.
     async fn request<T: DeserializeOwned, B: Serialize>(
         &self,

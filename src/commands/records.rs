@@ -1,7 +1,7 @@
 use crate::client::AttioClient;
 use crate::error::Result;
 use crate::output::{print_many, print_one, OutputFormat};
-use crate::types::{DataResponse, ListResponse, Record};
+use crate::types::{DataResponse, ListResponse, Record, SearchResult};
 use serde::Serialize;
 use std::io::{self, Read};
 
@@ -135,14 +135,19 @@ pub async fn search(
     #[derive(Serialize)]
     struct SearchRequest<'a> {
         query: &'a str,
+        objects: Vec<&'a str>,
         #[serde(skip_serializing_if = "Option::is_none")]
         limit: Option<u32>,
     }
 
-    let request = SearchRequest { query, limit };
+    let request = SearchRequest {
+        query,
+        objects: vec![object],
+        limit,
+    };
 
-    let response: ListResponse<Record> = client
-        .post(&format!("/objects/{}/records/search", object), &request)
+    let response: ListResponse<SearchResult> = client
+        .post("/objects/records/search", &request)
         .await?;
 
     print_many(&response.data, OutputFormat::from_json_flag(json))?;
