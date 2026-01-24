@@ -68,12 +68,15 @@ attio config set output [json|table|yaml]
 
 # View current configuration
 attio config show
-
-# Verify authentication (GET /v2/self)
-attio config whoami
 ```
 
-#### 1.3 Records Commands (Core CRUD)
+#### 1.3 Identity Check
+```bash
+# Verify authentication and show workspace info (GET /v2/self)
+attio whoami
+```
+
+#### 1.4 Records Commands (Core CRUD)
 Unified interface for all object types: `people`, `companies`, `deals`, `users`, or any custom object.
 
 ```bash
@@ -422,9 +425,9 @@ Support multiple output formats via `--output` or `-o` flag:
 ## Command Priority Summary
 
 ### Tier 1 (Must Have - Daily Operations)
-1. `attio config *` - Setup, authentication, whoami
-2. `attio records *` - CRUD for people, companies, deals, custom objects
-3. `attio records search` - Find records quickly
+1. `attio config *` - Setup and configuration
+2. `attio whoami` - Verify authentication
+3. `attio records *` - CRUD for people, companies, deals, custom objects
 
 ### Tier 2 (Should Have - Workflow Management)
 4. `attio lists *` - List management
