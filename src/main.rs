@@ -148,19 +148,6 @@ enum RecordsCommands {
         json: bool,
     },
 
-    /// Delete a record
-    Delete {
-        /// Object type
-        object: String,
-
-        /// Record ID
-        record_id: String,
-
-        /// Skip confirmation prompt
-        #[arg(long)]
-        noconfirm: bool,
-    },
-
     /// Search records
     Search {
         /// Object type
@@ -262,13 +249,6 @@ async fn run() -> attio::error::Result<()> {
                         json,
                     )
                     .await?;
-                }
-                RecordsCommands::Delete {
-                    object,
-                    record_id,
-                    noconfirm,
-                } => {
-                    commands::records::delete(&client, &object, &record_id, noconfirm).await?;
                 }
                 RecordsCommands::Search {
                     object,

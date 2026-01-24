@@ -5,23 +5,6 @@ use std::path::PathBuf;
 const CONFIG_DIR: &str = "attio";
 const CONFIG_FILE: &str = "config.toml";
 const ENV_API_KEY: &str = "ATTIO_API_KEY";
-const ENV_ALLOW_DESTRUCTIVE: &str = "ATTIO_ALLOW_DESTRUCTIVE";
-
-/// Check if destructive operations are allowed.
-pub fn allow_destructive() -> bool {
-    std::env::var(ENV_ALLOW_DESTRUCTIVE)
-        .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
-        .unwrap_or(false)
-}
-
-/// Require destructive operations to be enabled, or return an error.
-pub fn require_destructive() -> Result<()> {
-    if allow_destructive() {
-        Ok(())
-    } else {
-        Err(ConfigError::DestructiveDisabled.into())
-    }
-}
 
 /// Persistent configuration stored in config file.
 #[derive(Debug, Default, Serialize, Deserialize)]

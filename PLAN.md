@@ -102,9 +102,7 @@ attio records update <object> <record_id> '<json>'
 # Update a record (overwrite multiselect values)
 attio records update <object> <record_id> '<json>' --overwrite
 
-# Delete a record (prompts for confirmation)
-attio records delete <object> <record_id>
-attio records delete <object> <record_id> --noconfirm
+# Note: Delete operations are intentionally not implemented (see Design Decisions)
 
 # Get attribute values for a record
 attio records attributes <object> <record_id> [--attribute <attr>] [--show-historic]
@@ -159,9 +157,7 @@ attio entries update <list> <entry_id> '<json>'
 # Update entry (overwrite multiselect values)
 attio entries update <list> <entry_id> '<json>' --overwrite
 
-# Remove entry from list (prompts for confirmation)
-attio entries delete <list> <entry_id>
-attio entries delete <list> <entry_id> --noconfirm
+# Note: Delete operations are intentionally not implemented
 
 # Get entry attribute values
 attio entries attributes <list> <entry_id>
@@ -188,9 +184,7 @@ attio tasks create --content "Follow up with client" \
 # Update a task
 attio tasks update <task_id> [--content "..."] [--completed true] [--deadline "..."]
 
-# Delete a task
-attio tasks delete <task_id>
-attio tasks delete <task_id> --noconfirm
+# Note: Delete operations are intentionally not implemented
 ```
 
 #### 3.2 Notes Commands
@@ -207,9 +201,7 @@ attio notes create --title "Meeting Notes" \
     --parent-record <record_id> \
     [--content "Discussed Q1 goals..."]
 
-# Delete a note
-attio notes delete <note_id>
-attio notes delete <note_id> --noconfirm
+# Note: Delete operations are intentionally not implemented
 ```
 
 ---
@@ -284,9 +276,7 @@ attio webhooks create --target-url "https://example.com/webhook" \
 # Update webhook
 attio webhooks update <webhook_id> [--target-url "..."] [--subscriptions "..."]
 
-# Delete webhook
-attio webhooks delete <webhook_id>
-attio webhooks delete <webhook_id> --noconfirm
+# Note: Delete operations are intentionally not implemented
 ```
 
 **Available Webhook Events:**
@@ -326,9 +316,7 @@ attio comments create <thread_id> --content "Great progress!"
 # Get comment
 attio comments get <comment_id>
 
-# Delete comment
-attio comments delete <comment_id>
-attio comments delete <comment_id> --noconfirm
+# Note: Delete operations are intentionally not implemented
 ```
 
 ---
@@ -460,10 +448,7 @@ echo '{"name": "John Doe", "email_addresses": ["john@example.com"]}' | attio rec
 echo '{"email_addresses": ["john@example.com"], "name": "John"}' | attio records assert people --match-attr email_addresses
 ```
 
-**Non-interactive mode** (skip confirmations for scripts/automation):
-```bash
-attio records delete people abc123 --noconfirm
-```
+**No delete operations**: Delete commands are intentionally not implemented to prevent accidental data loss when used by LLMs.
 
 ---
 
@@ -497,7 +482,7 @@ attio records delete people abc123 --noconfirm
 1. **Initialize Rust project** with Cargo
 2. **Implement HTTP client** with authentication
 3. **Build config management** system
-4. **Implement records commands** (list, get, create, update, delete, search)
+4. **Implement records commands** (list, get, create, update, search - no delete)
 5. **Add lists and entries commands**
 6. **Build out remaining commands** in priority order
 7. **Add comprehensive error handling**

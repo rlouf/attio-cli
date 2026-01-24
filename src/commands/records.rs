@@ -152,48 +152,6 @@ pub async fn update(
     Ok(())
 }
 
-/// Delete a record.
-pub async fn delete(
-    client: &AttioClient,
-    object: &str,
-    record_id: &str,
-    noconfirm: bool,
-) -> Result<()> {
-    // Require explicit opt-in for destructive operations
-    crate::config::require_destructive()?;
-
-    if !noconfirm {
-        // Fetch record to show what we're deleting
-        let response: DataResponse<Record> = client
-            .get(&format!("/objects/{}/records/{}", object, record_id))
-            .await?;
-
-        let record = &response.data;
-        let name = crate::types::extract_record_name(&record.values);
-
-        eprint!(
-            "Delete {} \"{}\" ({})? [y/N] ",
-            object, name, record.id.record_id
-        );
-
-        let mut input = String::new();
-        io::stdin().read_line(&mut input)?;
-
-        if !input.trim().eq_ignore_ascii_case("y") {
-            println!("Cancelled.");
-            return Ok(());
-        }
-    }
-
-    client
-        .delete(&format!("/objects/{}/records/{}", object, record_id))
-        .await?;
-
-    println!("Deleted.");
-
-    Ok(())
-}
-
 /// Search records.
 pub async fn search(
     client: &AttioClient,
