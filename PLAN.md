@@ -64,7 +64,6 @@ attio config init
 
 # Set configuration values
 attio config set api-key <token>
-attio config set output [json|table|yaml]
 
 # View current configuration
 attio config show
@@ -413,12 +412,25 @@ The CLI should handle:
 
 ### Output Formats
 
-Support multiple output formats via `--output` or `-o` flag:
-- `table` (default): Human-readable table format
-- `json`: Compact JSON for scripting
-- `json-pretty`: Formatted JSON
-- `yaml`: YAML format
-- `ids`: Just IDs, one per line (for piping)
+Two modes controlled by `--json` flag:
+
+**Default (no flag):** Human-readable table format
+
+**With `--json`:**
+- Single record → JSON object
+- Collection → JSONL (one JSON object per line)
+
+```bash
+# Table output (default)
+attio records list people
+
+# JSON object (single record)
+attio records get people abc123 --json
+
+# JSONL (collection, one record per line for streaming/piping)
+attio records list people --json
+attio records list people --json | jq -r '.email_addresses[0]'
+```
 
 ---
 
