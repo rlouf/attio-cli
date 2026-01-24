@@ -85,26 +85,26 @@ attio records list <object> [--limit N] [--offset N] [--filter <json>] [--sort <
 # Get a specific record by ID
 attio records get <object> <record_id>
 
-# Create a new record
-attio records create <object> --data '<json>'
-attio records create <object> --data -              # read JSON from stdin
+# Create a new record (JSON as arg or stdin)
+attio records create <object> '<json>'
+echo '<json>' | attio records create <object>
 # Examples:
-#   attio records create people --data '{"name": "John Doe", "email_addresses": ["john@example.com"]}'
-#   echo '{"name": "Acme Corp"}' | attio records create companies --data -
+#   attio records create people '{"name": "John Doe", "email_addresses": ["john@example.com"]}'
+#   echo '{"name": "Acme Corp"}' | attio records create companies
 
 # Assert a record (upsert - create or update if matching)
-attio records assert <object> --match-attr <attribute> --data '<json>'
-# Example:
-#   attio records assert people --match-attr email_addresses --data '{"email_addresses": ["john@example.com"], "name": "John Doe"}'
+attio records assert <object> --match-attr <attribute> '<json>'
+echo '<json>' | attio records assert <object> --match-attr <attribute>
 
 # Update a record (append to multiselect values)
-attio records update <object> <record_id> --data '<json>'
+attio records update <object> <record_id> '<json>'
 
 # Update a record (overwrite multiselect values)
-attio records update <object> <record_id> --data '<json>' --overwrite
+attio records update <object> <record_id> '<json>' --overwrite
 
-# Delete a record
+# Delete a record (prompts for confirmation)
 attio records delete <object> <record_id>
+attio records delete <object> <record_id> -f    # skip confirmation
 
 # Get attribute values for a record
 attio records attributes <object> <record_id> [--attribute <attr>] [--show-historic]
@@ -148,19 +148,20 @@ attio entries list <list> [--filter <json>] [--sort <json>] [--limit N]
 attio entries get <list> <entry_id>
 
 # Add a record to a list (create entry)
-attio entries create <list> --record-id <record_id> [--data '<json>']
+attio entries create <list> --record-id <record_id> ['<json>']
 
 # Assert an entry (create if not exists)
-attio entries assert <list> --parent-record <record_id> [--data '<json>']
+attio entries assert <list> --parent-record <record_id> ['<json>']
 
 # Update entry (append to multiselect values)
-attio entries update <list> <entry_id> --data '<json>'
+attio entries update <list> <entry_id> '<json>'
 
 # Update entry (overwrite multiselect values)
-attio entries update <list> <entry_id> --data '<json>' --overwrite
+attio entries update <list> <entry_id> '<json>' --overwrite
 
-# Remove entry from list
+# Remove entry from list (prompts for confirmation)
 attio entries delete <list> <entry_id>
+attio entries delete <list> <entry_id> -f    # skip confirmation
 
 # Get entry attribute values
 attio entries attributes <list> <entry_id>
@@ -189,6 +190,7 @@ attio tasks update <task_id> [--content "..."] [--completed true] [--deadline ".
 
 # Delete a task
 attio tasks delete <task_id>
+attio tasks delete <task_id> -f    # skip confirmation
 ```
 
 #### 3.2 Notes Commands
@@ -207,6 +209,7 @@ attio notes create --title "Meeting Notes" \
 
 # Delete a note
 attio notes delete <note_id>
+attio notes delete <note_id> -f    # skip confirmation
 ```
 
 ---
@@ -283,6 +286,7 @@ attio webhooks update <webhook_id> [--target-url "..."] [--subscriptions "..."]
 
 # Delete webhook
 attio webhooks delete <webhook_id>
+attio webhooks delete <webhook_id> -f    # skip confirmation
 ```
 
 **Available Webhook Events:**
@@ -324,6 +328,7 @@ attio comments get <comment_id>
 
 # Delete comment
 attio comments delete <comment_id>
+attio comments delete <comment_id> -f    # skip confirmation
 ```
 
 ---
@@ -439,20 +444,25 @@ Designed to be usable by both humans and LLMs:
 
 **Discoverability:**
 ```bash
-attio objects list --json       # What objects exist?
-attio attributes list people --json  # What fields can I set on people?
-attio --help                    # Command overview with examples
-attio records --help            # Subcommand help with examples
+attio objects list --json              # What objects exist?
+attio attributes list people --json    # What fields can I set on people?
+attio --help                           # Command overview with examples
+attio records --help                   # Subcommand help with examples
 ```
 
 **Stdin support for data input** (avoids shell escaping issues):
 ```bash
-echo '{"name": "John Doe", "email_addresses": ["john@example.com"]}' | attio records create people --data -
+echo '{"name": "John Doe", "email_addresses": ["john@example.com"]}' | attio records create people
 ```
 
 **Idempotent operations** (safe to retry):
 ```bash
-attio records assert people --match-attr email_addresses --data -
+echo '{"email_addresses": ["john@example.com"], "name": "John"}' | attio records assert people --match-attr email_addresses
+```
+
+**Non-interactive mode** (skip confirmations for scripts/automation):
+```bash
+attio records delete people abc123 -f
 ```
 
 ---
