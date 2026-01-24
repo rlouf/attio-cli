@@ -211,11 +211,11 @@ def objects_list(as_json: bool):
         output_many(response["data"], OBJECT_COLUMNS, as_json)
 
 
-@objects.command("get")
+@objects.command("retrieve")
 @click.argument("object")
 @click.option("--json", "as_json", is_flag=True, help="Output as JSON")
-def objects_get(object: str, as_json: bool):
-    """Get object details."""
+def objects_retrieve(object: str, as_json: bool):
+    """Retrieve object details."""
     with get_client() as client:
         response = client.get(f"/objects/{object}")
         output_one(response["data"], OBJECT_COLUMNS, as_json)
@@ -258,12 +258,12 @@ def records_list(
         output_many(response["data"], RECORD_COLUMNS, as_json)
 
 
-@records.command("get")
+@records.command("retrieve")
 @click.argument("object")
 @click.argument("record_id")
 @click.option("--json", "as_json", is_flag=True, help="Output as JSON")
-def records_get(object: str, record_id: str, as_json: bool):
-    """Get a record by ID."""
+def records_retrieve(object: str, record_id: str, as_json: bool):
+    """Retrieve a record by ID."""
     with get_client() as client:
         response = client.get(f"/objects/{object}/records/{record_id}")
         output_one(response["data"], RECORD_COLUMNS, as_json)
@@ -333,11 +333,11 @@ def lists_list(as_json: bool):
         output_many(response["data"], LIST_COLUMNS, as_json)
 
 
-@lists.command("get")
+@lists.command("retrieve")
 @click.argument("list_id")
 @click.option("--json", "as_json", is_flag=True, help="Output as JSON")
-def lists_get(list_id: str, as_json: bool):
-    """Get list details."""
+def lists_retrieve(list_id: str, as_json: bool):
+    """Retrieve list details."""
     with get_client() as client:
         response = client.get(f"/lists/{list_id}")
         output_one(response["data"], LIST_COLUMNS, as_json)
@@ -380,12 +380,12 @@ def entries_list(
         output_many(response["data"], ENTRY_COLUMNS, as_json)
 
 
-@entries.command("get")
+@entries.command("retrieve")
 @click.argument("list_id")
 @click.argument("entry_id")
 @click.option("--json", "as_json", is_flag=True, help="Output as JSON")
-def entries_get(list_id: str, entry_id: str, as_json: bool):
-    """Get an entry by ID."""
+def entries_retrieve(list_id: str, entry_id: str, as_json: bool):
+    """Retrieve an entry by ID."""
     with get_client() as client:
         response = client.get(f"/lists/{list_id}/entries/{entry_id}")
         output_one(response["data"], ENTRY_COLUMNS, as_json)
@@ -464,11 +464,11 @@ def tasks_list(limit: int, offset: int, as_json: bool):
         output_many(response["data"], TASK_COLUMNS, as_json)
 
 
-@tasks.command("get")
+@tasks.command("retrieve")
 @click.argument("task_id")
 @click.option("--json", "as_json", is_flag=True, help="Output as JSON")
-def tasks_get(task_id: str, as_json: bool):
-    """Get a task by ID."""
+def tasks_retrieve(task_id: str, as_json: bool):
+    """Retrieve a task by ID."""
     with get_client() as client:
         response = client.get(f"/tasks/{task_id}")
         output_one(response["data"], TASK_COLUMNS, as_json)
@@ -551,11 +551,11 @@ def notes_list(parent_object: str, parent_record_id: str, limit: int, offset: in
         output_many(response["data"], NOTE_COLUMNS, as_json)
 
 
-@notes.command("get")
+@notes.command("retrieve")
 @click.argument("note_id")
 @click.option("--json", "as_json", is_flag=True, help="Output as JSON")
-def notes_get(note_id: str, as_json: bool):
-    """Get a note by ID."""
+def notes_retrieve(note_id: str, as_json: bool):
+    """Retrieve a note by ID."""
     with get_client() as client:
         response = client.get(f"/notes/{note_id}")
         output_one(response["data"], NOTE_COLUMNS, as_json)
@@ -604,12 +604,12 @@ def attributes_list(object: str, as_json: bool):
         output_many(response["data"], ATTRIBUTE_COLUMNS, as_json)
 
 
-@attributes.command("get")
+@attributes.command("retrieve")
 @click.argument("object")
 @click.argument("attribute")
 @click.option("--json", "as_json", is_flag=True, help="Output as JSON")
-def attributes_get(object: str, attribute: str, as_json: bool):
-    """Get attribute details."""
+def attributes_retrieve(object: str, attribute: str, as_json: bool):
+    """Retrieve attribute details."""
     with get_client() as client:
         response = client.get(f"/objects/{object}/attributes/{attribute}")
         output_one(response["data"], ATTRIBUTE_COLUMNS, as_json)
@@ -763,11 +763,11 @@ def members_list(as_json: bool):
         output_many(response["data"], MEMBER_COLUMNS, as_json)
 
 
-@members.command("get")
+@members.command("retrieve")
 @click.argument("member_id")
 @click.option("--json", "as_json", is_flag=True, help="Output as JSON")
-def members_get(member_id: str, as_json: bool):
-    """Get member details."""
+def members_retrieve(member_id: str, as_json: bool):
+    """Retrieve member details."""
     with get_client() as client:
         response = client.get(f"/workspace_members/{member_id}")
         output_one(response["data"], MEMBER_COLUMNS, as_json)
@@ -791,11 +791,11 @@ def webhooks_list(as_json: bool):
         output_many(response["data"], WEBHOOK_COLUMNS, as_json)
 
 
-@webhooks.command("get")
+@webhooks.command("retrieve")
 @click.argument("webhook_id")
 @click.option("--json", "as_json", is_flag=True, help="Output as JSON")
-def webhooks_get(webhook_id: str, as_json: bool):
-    """Get webhook details."""
+def webhooks_retrieve(webhook_id: str, as_json: bool):
+    """Retrieve webhook details."""
     with get_client() as client:
         response = client.get(f"/webhooks/{webhook_id}")
         output_one(response["data"], WEBHOOK_COLUMNS, as_json)

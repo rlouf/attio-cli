@@ -30,8 +30,8 @@ attio whoami  # Verify API key and show workspace info
 attio records list people
 attio records list companies --limit 10
 
-# Get a specific record
-attio records get people <record-id>
+# Retrieve a specific record
+attio records retrieve people <record-id>
 
 # Create a record (pipe JSON via stdin to avoid shell escaping)
 echo '{"email_addresses": ["john@example.com"], "name": "John Doe"}' | attio records create people
@@ -49,8 +49,8 @@ attio records search people "john" --limit 5
 # List all lists (pipelines)
 attio lists list
 
-# Get list details
-attio lists get <list-slug>
+# Retrieve list details
+attio lists retrieve <list-slug>
 
 # List entries in a list
 attio entries list <list-slug>
@@ -91,8 +91,8 @@ attio notes create --title "Meeting Notes" --parent-object people --parent-recor
 # List attributes for an object
 attio attributes list people
 
-# Get attribute details
-attio attributes get people email_addresses
+# Retrieve attribute details
+attio attributes retrieve people email_addresses
 
 # List select options
 attio attributes options <object> <attribute>
