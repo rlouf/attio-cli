@@ -1,4 +1,11 @@
+pub mod attributes;
 pub mod config;
+pub mod entries;
+pub mod lists;
+pub mod members;
+pub mod notes;
 pub mod objects;
 pub mod records;
+pub mod tasks;
+pub mod webhooks;
 pub mod whoami;

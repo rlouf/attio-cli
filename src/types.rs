@@ -144,6 +144,358 @@ pub fn extract_record_name(values: &serde_json::Value) -> String {
     extract_name(values)
 }
 
+/// A list (e.g., Sales Pipeline, Hiring Pipeline).
+#[derive(Debug, Serialize, Deserialize)]
+pub struct List {
+    pub id: ListId,
+    pub api_slug: String,
+    pub name: String,
+    #[serde(default)]
+    pub parent_object: Option<Vec<String>>,
+    #[serde(default)]
+    pub workspace_access: Option<String>,
+}
+
+/// List ID.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ListId {
+    pub list_id: String,
+}
+
+impl TableRow for List {
+    fn headers() -> Vec<&'static str> {
+        vec!["SLUG", "NAME", "PARENT OBJECT", "ID"]
+    }
+
+    fn row(&self) -> Vec<String> {
+        vec![
+            self.api_slug.clone(),
+            self.name.clone(),
+            self.parent_object
+                .as_ref()
+                .map(|v| v.join(", "))
+                .unwrap_or_else(|| "-".to_string()),
+            self.id.list_id.clone(),
+        ]
+    }
+}
+
+/// An entry in a list.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Entry {
+    pub id: EntryId,
+    #[serde(default)]
+    pub parent_record_id: Option<String>,
+    #[serde(default)]
+    pub values: serde_json::Value,
+}
+
+/// Entry ID.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct EntryId {
+    pub entry_id: String,
+    #[serde(default)]
+    pub list_id: Option<String>,
+}
+
+impl TableRow for Entry {
+    fn headers() -> Vec<&'static str> {
+        vec!["ENTRY ID", "RECORD ID", "VALUES"]
+    }
+
+    fn row(&self) -> Vec<String> {
+        let record_id = self.parent_record_id.clone().unwrap_or_else(|| "-".to_string());
+
+        let values_str = if self.values.is_null() {
+            "-".to_string()
+        } else {
+            let json = serde_json::to_string(&self.values).unwrap_or_default();
+            if json.len() > 60 {
+                format!("{}...", &json[..60])
+            } else {
+                json
+            }
+        };
+
+        vec![self.id.entry_id.clone(), record_id, values_str]
+    }
+}
+
+/// A task.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Task {
+    pub id: TaskId,
+    pub content_plaintext: String,
+    #[serde(default)]
+    pub is_completed: bool,
+    #[serde(default)]
+    pub deadline_at: Option<String>,
+    #[serde(default)]
+    pub assignees: Vec<serde_json::Value>,
+    #[serde(default)]
+    pub linked_records: Vec<serde_json::Value>,
+    #[serde(default)]
+    pub created_by_actor: Option<serde_json::Value>,
+    #[serde(default)]
+    pub created_at: Option<String>,
+}
+
+/// Task ID.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct TaskId {
+    pub task_id: String,
+}
+
+impl TableRow for Task {
+    fn headers() -> Vec<&'static str> {
+        vec!["ID", "CONTENT", "COMPLETED", "DEADLINE"]
+    }
+
+    fn row(&self) -> Vec<String> {
+        let content = if self.content_plaintext.len() > 50 {
+            format!("{}...", &self.content_plaintext[..50])
+        } else {
+            self.content_plaintext.clone()
+        };
+
+        let completed = if self.is_completed { "✓" } else { "" }.to_string();
+        let deadline = self.deadline_at.clone().unwrap_or_else(|| "-".to_string());
+
+        vec![self.id.task_id.clone(), content, completed, deadline]
+    }
+}
+
+/// A note.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Note {
+    pub id: NoteId,
+    #[serde(default)]
+    pub title: Option<String>,
+    #[serde(default)]
+    pub content_plaintext: Option<String>,
+    #[serde(default)]
+    pub parent_object: Option<String>,
+    #[serde(default)]
+    pub parent_record_id: Option<String>,
+    #[serde(default)]
+    pub created_by_actor: Option<serde_json::Value>,
+    #[serde(default)]
+    pub created_at: Option<String>,
+}
+
+/// Note ID.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct NoteId {
+    pub note_id: String,
+}
+
+impl TableRow for Note {
+    fn headers() -> Vec<&'static str> {
+        vec!["ID", "TITLE", "PARENT", "CREATED"]
+    }
+
+    fn row(&self) -> Vec<String> {
+        let title = self.title.clone().unwrap_or_else(|| "-".to_string());
+        let parent = match (&self.parent_object, &self.parent_record_id) {
+            (Some(obj), Some(rec)) => format!("{}:{}", obj, &rec[..8.min(rec.len())]),
+            _ => "-".to_string(),
+        };
+        let created = self
+            .created_at
+            .as_ref()
+            .map(|s| s[..10.min(s.len())].to_string())
+            .unwrap_or_else(|| "-".to_string());
+
+        vec![self.id.note_id.clone(), title, parent, created]
+    }
+}
+
+/// An attribute definition.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Attribute {
+    pub id: AttributeId,
+    pub title: String,
+    pub api_slug: String,
+    #[serde(rename = "type")]
+    pub attr_type: String,
+    #[serde(default)]
+    pub is_required: bool,
+    #[serde(default)]
+    pub is_unique: bool,
+    #[serde(default)]
+    pub is_multiselect: bool,
+    #[serde(default)]
+    pub is_archived: bool,
+}
+
+/// Attribute ID.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct AttributeId {
+    pub attribute_id: String,
+    #[serde(default)]
+    pub object_id: Option<String>,
+}
+
+impl TableRow for Attribute {
+    fn headers() -> Vec<&'static str> {
+        vec!["SLUG", "TITLE", "TYPE", "REQUIRED", "MULTISELECT"]
+    }
+
+    fn row(&self) -> Vec<String> {
+        vec![
+            self.api_slug.clone(),
+            self.title.clone(),
+            self.attr_type.clone(),
+            if self.is_required { "✓" } else { "" }.to_string(),
+            if self.is_multiselect { "✓" } else { "" }.to_string(),
+        ]
+    }
+}
+
+/// A select option.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SelectOption {
+    pub id: SelectOptionId,
+    pub title: String,
+    #[serde(default)]
+    pub is_archived: bool,
+}
+
+/// Select option ID.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SelectOptionId {
+    pub option_id: String,
+}
+
+impl TableRow for SelectOption {
+    fn headers() -> Vec<&'static str> {
+        vec!["ID", "TITLE", "ARCHIVED"]
+    }
+
+    fn row(&self) -> Vec<String> {
+        vec![
+            self.id.option_id.clone(),
+            self.title.clone(),
+            if self.is_archived { "✓" } else { "" }.to_string(),
+        ]
+    }
+}
+
+/// A status option.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct StatusOption {
+    pub id: StatusOptionId,
+    pub title: String,
+    #[serde(default)]
+    pub is_archived: bool,
+    #[serde(default)]
+    pub target_time_in_status: Option<i64>,
+}
+
+/// Status option ID.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct StatusOptionId {
+    pub status_id: String,
+}
+
+impl TableRow for StatusOption {
+    fn headers() -> Vec<&'static str> {
+        vec!["ID", "TITLE", "ARCHIVED"]
+    }
+
+    fn row(&self) -> Vec<String> {
+        vec![
+            self.id.status_id.clone(),
+            self.title.clone(),
+            if self.is_archived { "✓" } else { "" }.to_string(),
+        ]
+    }
+}
+
+/// A workspace member.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Member {
+    pub id: MemberId,
+    #[serde(default)]
+    pub first_name: Option<String>,
+    #[serde(default)]
+    pub last_name: Option<String>,
+    #[serde(default)]
+    pub email_address: Option<String>,
+    #[serde(default)]
+    pub avatar_url: Option<String>,
+    #[serde(default)]
+    pub access_level: Option<String>,
+}
+
+/// Member ID.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct MemberId {
+    pub workspace_member_id: String,
+}
+
+impl TableRow for Member {
+    fn headers() -> Vec<&'static str> {
+        vec!["ID", "NAME", "EMAIL", "ACCESS"]
+    }
+
+    fn row(&self) -> Vec<String> {
+        let name = match (&self.first_name, &self.last_name) {
+            (Some(f), Some(l)) => format!("{} {}", f, l),
+            (Some(f), None) => f.clone(),
+            (None, Some(l)) => l.clone(),
+            _ => "-".to_string(),
+        };
+
+        vec![
+            self.id.workspace_member_id.clone(),
+            name,
+            self.email_address.clone().unwrap_or_else(|| "-".to_string()),
+            self.access_level.clone().unwrap_or_else(|| "-".to_string()),
+        ]
+    }
+}
+
+/// A webhook.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Webhook {
+    pub id: WebhookId,
+    pub target_url: String,
+    #[serde(default)]
+    pub subscriptions: Vec<serde_json::Value>,
+    #[serde(default)]
+    pub status: Option<String>,
+    #[serde(default)]
+    pub created_at: Option<String>,
+}
+
+/// Webhook ID.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct WebhookId {
+    pub webhook_id: String,
+}
+
+impl TableRow for Webhook {
+    fn headers() -> Vec<&'static str> {
+        vec!["ID", "TARGET URL", "STATUS", "SUBSCRIPTIONS"]
+    }
+
+    fn row(&self) -> Vec<String> {
+        let subscriptions = if self.subscriptions.is_empty() {
+            "-".to_string()
+        } else {
+            format!("{} events", self.subscriptions.len())
+        };
+
+        vec![
+            self.id.webhook_id.clone(),
+            self.target_url.clone(),
+            self.status.clone().unwrap_or_else(|| "-".to_string()),
+            subscriptions,
+        ]
+    }
+}
+
 fn extract_name(values: &serde_json::Value) -> String {
     // Try common name fields
     let candidates = ["name", "full_name", "first_name", "title", "email_addresses"];
