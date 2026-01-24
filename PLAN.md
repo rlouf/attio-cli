@@ -104,7 +104,7 @@ attio records update <object> <record_id> '<json>' --overwrite
 
 # Delete a record (prompts for confirmation)
 attio records delete <object> <record_id>
-attio records delete <object> <record_id> -f    # skip confirmation
+attio records delete <object> <record_id> --noconfirm
 
 # Get attribute values for a record
 attio records attributes <object> <record_id> [--attribute <attr>] [--show-historic]
@@ -161,7 +161,7 @@ attio entries update <list> <entry_id> '<json>' --overwrite
 
 # Remove entry from list (prompts for confirmation)
 attio entries delete <list> <entry_id>
-attio entries delete <list> <entry_id> -f    # skip confirmation
+attio entries delete <list> <entry_id> --noconfirm
 
 # Get entry attribute values
 attio entries attributes <list> <entry_id>
@@ -190,7 +190,7 @@ attio tasks update <task_id> [--content "..."] [--completed true] [--deadline ".
 
 # Delete a task
 attio tasks delete <task_id>
-attio tasks delete <task_id> -f    # skip confirmation
+attio tasks delete <task_id> --noconfirm
 ```
 
 #### 3.2 Notes Commands
@@ -209,7 +209,7 @@ attio notes create --title "Meeting Notes" \
 
 # Delete a note
 attio notes delete <note_id>
-attio notes delete <note_id> -f    # skip confirmation
+attio notes delete <note_id> --noconfirm
 ```
 
 ---
@@ -286,7 +286,7 @@ attio webhooks update <webhook_id> [--target-url "..."] [--subscriptions "..."]
 
 # Delete webhook
 attio webhooks delete <webhook_id>
-attio webhooks delete <webhook_id> -f    # skip confirmation
+attio webhooks delete <webhook_id> --noconfirm
 ```
 
 **Available Webhook Events:**
@@ -328,7 +328,7 @@ attio comments get <comment_id>
 
 # Delete comment
 attio comments delete <comment_id>
-attio comments delete <comment_id> -f    # skip confirmation
+attio comments delete <comment_id> --noconfirm
 ```
 
 ---
@@ -462,7 +462,7 @@ echo '{"email_addresses": ["john@example.com"], "name": "John"}' | attio records
 
 **Non-interactive mode** (skip confirmations for scripts/automation):
 ```bash
-attio records delete people abc123 -f
+attio records delete people abc123 --noconfirm
 ```
 
 ---
