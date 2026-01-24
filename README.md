@@ -1,114 +1,140 @@
 # Attio CLI
 
-A command-line interface for [Attio](https://attio.com) CRM, designed for both humans and LLMs.
+A command-line interface for interacting with the [Attio CRM API](https://developers.attio.com/).
 
 ## Installation
 
 ```bash
-cargo install --path .
+pip install attio-cli
 ```
 
 ## Configuration
 
-Set your API key (get one from Attio workspace settings → Developers):
+Set your API key via environment variable (recommended):
 
 ```bash
-# Option 1: Environment variable
-export ATTIO_API_KEY=your_api_key
-
-# Option 2: Config file
-attio config set api-key your_api_key
+export ATTIO_API_KEY="your-api-key"
 ```
 
-Verify it works:
+Or save it to the config file:
+
+```bash
+attio config set api-key "your-api-key"
+```
+
+## Usage
+
+### Check authentication
 
 ```bash
 attio whoami
 ```
 
-## Usage
-
 ### Records
 
 ```bash
-# List records
+# List people
 attio records list people
-attio records list companies --limit 10
-attio records list people --json | jq '.name'
 
-# Get a record
-attio records get people abc123
+# Get a specific record
+attio records get people <record-id>
 
-# Create a record
-attio records create people '{"name": "John Doe", "email_addresses": ["john@example.com"]}'
+# Create a record (JSON as argument)
+attio records create people '{"email_addresses": ["john@example.com"], "name": "John Doe"}'
 
-# Create via stdin (useful for LLMs to avoid shell escaping)
-echo '{"name": "John Doe"}' | attio records create people
+# Create a record (via stdin - better for LLMs)
+echo '{"email_addresses": ["john@example.com"]}' | attio records create people
 
 # Update a record
-attio records update people abc123 '{"name": "Jane Doe"}'
+attio records update people <record-id> '{"name": "Jane Doe"}'
 
-# Search
+# Search records
 attio records search people "john"
-attio records search companies "acme" --json
 ```
 
-### Objects (Schema Discovery)
+### Lists & Entries
 
 ```bash
-# List all objects (people, companies, custom objects)
-attio objects list
+# List all lists (pipelines)
+attio lists list
 
-# Get object details
-attio objects get people
+# List entries in a list
+attio entries list <list-slug>
+
+# Add a record to a list
+attio entries create <list-slug> --record-id <record-id>
 ```
 
-### Output Formats
-
-- **Default**: Human-readable table
-- **`--json`**: JSON for single records, JSONL for collections
+### Tasks
 
 ```bash
-# Table output
+# List tasks
+attio tasks list
+
+# Create a task
+attio tasks create "Follow up with client" --deadline "2025-01-30"
+
+# Mark task as completed
+attio tasks update <task-id> --completed true
+```
+
+### Notes
+
+```bash
+# List notes for a record
+attio notes list --parent-object people --parent-record-id <record-id>
+
+# Create a note
+attio notes create --title "Meeting Notes" --parent-object people --parent-record-id <record-id>
+```
+
+## Output Formats
+
+By default, output is formatted as a human-readable table. Use `--json` for machine-readable output:
+
+- Single items: JSON object
+- Collections: JSONL (one JSON object per line)
+
+```bash
+# Human-readable table
 attio records list people
 
-# JSON output (one record per line for collections)
+# JSON Lines (for piping/scripting)
 attio records list people --json
-attio records get people abc123 --json
+
+# Pipe to jq
+attio records list people --json | jq -r '.id.record_id'
 ```
 
-## Design Decisions
+## LLM Usage (Claude Skill)
 
-### No Delete Operations
+This CLI is designed to be usable by LLMs:
 
-This CLI intentionally does not implement delete operations.
-
-**Why?** This CLI is designed to be used as a tool by LLMs (like Claude). Delete operations are destructive and irreversible. Any "safety" mechanism we could implement (confirmation prompts, environment variables, flags) can be bypassed by an LLM that can execute shell commands.
-
-**What to do instead:**
-- Use the [Attio web interface](https://app.attio.com) to delete records
-- Use the API directly if you need programmatic deletion with proper safeguards
-
-This follows the principle of least privilege: the CLI provides read and write access, but not delete. This limits the blast radius of any mistakes or hallucinations.
-
-### Stdin Support
-
-All commands that accept JSON data can read from stdin:
+1. **Discoverability**: Use `--help` on any command
+2. **Stdin support**: Pipe JSON to avoid shell escaping issues
+3. **JSONL output**: Easy to parse programmatically
+4. **No delete operations**: Intentionally omitted for safety
 
 ```bash
-echo '{"name": "John"}' | attio records create people
+# LLM-friendly: pipe JSON via stdin
+echo '{"name": "Acme Corp"}' | attio records create companies --json
 ```
 
-This is especially useful for LLMs, as it avoids shell escaping issues with complex JSON.
+## Commands
 
-### JSONL for Collections
-
-When using `--json`, collections are output as JSONL (one JSON object per line), not a JSON array. This enables streaming and piping:
-
-```bash
-attio records list people --json | jq -r '.email_addresses[0]'
-attio records list people --json | head -5
-```
+| Command | Description |
+|---------|-------------|
+| `attio whoami` | Show workspace info |
+| `attio config` | Manage configuration |
+| `attio objects` | List/get object schemas |
+| `attio records` | CRUD for records |
+| `attio lists` | Manage lists |
+| `attio entries` | Manage list entries |
+| `attio tasks` | Manage tasks |
+| `attio notes` | Manage notes |
+| `attio attributes` | Manage object attributes |
+| `attio members` | List workspace members |
+| `attio webhooks` | Manage webhooks |
 
 ## License
 
