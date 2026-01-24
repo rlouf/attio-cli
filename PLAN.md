@@ -87,9 +87,10 @@ attio records get <object> <record_id>
 
 # Create a new record
 attio records create <object> --data '<json>'
+attio records create <object> --data -              # read JSON from stdin
 # Examples:
 #   attio records create people --data '{"name": "John Doe", "email_addresses": ["john@example.com"]}'
-#   attio records create companies --data '{"name": "Acme Corp", "domains": ["acme.com"]}'
+#   echo '{"name": "Acme Corp"}' | attio records create companies --data -
 
 # Assert a record (upsert - create or update if matching)
 attio records assert <object> --match-attr <attribute> --data '<json>'
@@ -430,6 +431,28 @@ attio records get people abc123 --json
 # JSONL (collection, one record per line for streaming/piping)
 attio records list people --json
 attio records list people --json | jq -r '.email_addresses[0]'
+```
+
+### LLM Usage (Claude Skill)
+
+Designed to be usable by both humans and LLMs:
+
+**Discoverability:**
+```bash
+attio objects list --json       # What objects exist?
+attio attributes list people --json  # What fields can I set on people?
+attio --help                    # Command overview with examples
+attio records --help            # Subcommand help with examples
+```
+
+**Stdin support for data input** (avoids shell escaping issues):
+```bash
+echo '{"name": "John Doe", "email_addresses": ["john@example.com"]}' | attio records create people --data -
+```
+
+**Idempotent operations** (safe to retry):
+```bash
+attio records assert people --match-attr email_addresses --data -
 ```
 
 ---
