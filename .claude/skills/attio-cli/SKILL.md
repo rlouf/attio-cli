@@ -1,27 +1,26 @@
+---
+name: attio-cli
+description: Interacts with Attio CRM via the attio-cli command-line tool. Use when the user wants to manage CRM data including records (people, companies), lists, entries, tasks, notes, or workspace settings. Provides commands for listing, creating, updating, and searching CRM data.
+---
+
 # Attio CLI
 
-A command-line interface for the Attio CRM API.
-
-## Installation
-
-```bash
-pip install attio-cli
-```
+A command-line interface for the Attio CRM API. Delete operations are intentionally not implemented for safety.
 
 ## Configuration
 
-Set the API key via environment variable:
+The API key must be set via environment variable:
 
 ```bash
 export ATTIO_API_KEY="your-api-key"
 ```
 
-## Commands
+## Commands Reference
 
-### Check authentication
+### Authentication
 
 ```bash
-attio whoami
+attio whoami  # Verify API key and show workspace info
 ```
 
 ### Records (people, companies, custom objects)
@@ -34,7 +33,7 @@ attio records list companies --limit 10
 # Get a specific record
 attio records get people <record-id>
 
-# Create a record (use stdin to avoid shell escaping issues)
+# Create a record (pipe JSON via stdin to avoid shell escaping)
 echo '{"email_addresses": ["john@example.com"], "name": "John Doe"}' | attio records create people
 
 # Update a record
@@ -122,9 +121,9 @@ attio webhooks list
 attio records list people --json | head -1 | jq '.id.record_id'
 ```
 
-## Important Notes
+## Guidelines
 
-1. **No delete operations**: Delete commands are intentionally not implemented for safety
-2. **Use stdin for JSON**: Pipe JSON data via stdin to avoid shell escaping issues
-3. **IDs**: Record IDs, list IDs, etc. are UUIDs returned by the API
-4. **Object slugs**: Use `people`, `companies`, or custom object slugs
+1. Always pipe JSON data via stdin to avoid shell escaping issues
+2. Record IDs and list IDs are UUIDs returned by the API
+3. Use object slugs: `people`, `companies`, or custom object slugs
+4. Delete operations are not available (by design for safety)
