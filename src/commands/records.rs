@@ -159,6 +159,9 @@ pub async fn delete(
     record_id: &str,
     noconfirm: bool,
 ) -> Result<()> {
+    // Require explicit opt-in for destructive operations
+    crate::config::require_destructive()?;
+
     if !noconfirm {
         // Fetch record to show what we're deleting
         let response: DataResponse<Record> = client

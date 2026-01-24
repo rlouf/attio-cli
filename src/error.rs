@@ -25,6 +25,9 @@ pub enum ConfigError {
     #[error("No API key configured. Run `attio config set api-key <token>` or set ATTIO_API_KEY")]
     MissingApiKey,
 
+    #[error("Destructive operations are disabled. Set ATTIO_ALLOW_DESTRUCTIVE=1 to enable")]
+    DestructiveDisabled,
+
     #[error("Failed to read config file at {path}: {source}")]
     ReadFile {
         path: PathBuf,
