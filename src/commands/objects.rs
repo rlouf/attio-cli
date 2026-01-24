@@ -6,27 +6,13 @@ use crate::types::{DataResponse, ListResponse, Object};
 /// List all objects.
 pub async fn list(client: &AttioClient, json: bool) -> Result<()> {
     let response: ListResponse<Object> = client.get("/objects").await?;
-    let format = if json {
-        OutputFormat::Json
-    } else {
-        OutputFormat::Table
-    };
-
-    print_many(&response.data, format)?;
-
+    print_many(&response.data, OutputFormat::from_json_flag(json))?;
     Ok(())
 }
 
 /// Get a specific object.
 pub async fn get(client: &AttioClient, object: &str, json: bool) -> Result<()> {
     let response: DataResponse<Object> = client.get(&format!("/objects/{}", object)).await?;
-    let format = if json {
-        OutputFormat::Json
-    } else {
-        OutputFormat::Table
-    };
-
-    print_one(&response.data, format)?;
-
+    print_one(&response.data, OutputFormat::from_json_flag(json))?;
     Ok(())
 }

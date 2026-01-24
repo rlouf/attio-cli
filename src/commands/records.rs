@@ -28,8 +28,8 @@ pub async fn list(
     sort: Option<&str>,
     json: bool,
 ) -> Result<()> {
-    let filter = filter.map(|f| serde_json::from_str(f)).transpose()?;
-    let sorts = sort.map(|s| serde_json::from_str(s)).transpose()?;
+    let filter = filter.map(serde_json::from_str).transpose()?;
+    let sorts = sort.map(serde_json::from_str).transpose()?;
 
     let query = ListQuery {
         limit,
@@ -42,14 +42,7 @@ pub async fn list(
         .post(&format!("/objects/{}/records/query", object), &query)
         .await?;
 
-    let format = if json {
-        OutputFormat::Json
-    } else {
-        OutputFormat::Table
-    };
-
-    print_many(&response.data, format)?;
-
+    print_many(&response.data, OutputFormat::from_json_flag(json))?;
     Ok(())
 }
 
@@ -59,14 +52,7 @@ pub async fn get(client: &AttioClient, object: &str, record_id: &str, json: bool
         .get(&format!("/objects/{}/records/{}", object, record_id))
         .await?;
 
-    let format = if json {
-        OutputFormat::Json
-    } else {
-        OutputFormat::Table
-    };
-
-    print_one(&response.data, format)?;
-
+    print_one(&response.data, OutputFormat::from_json_flag(json))?;
     Ok(())
 }
 
@@ -92,14 +78,7 @@ pub async fn create(
         .post(&format!("/objects/{}/records", object), &request)
         .await?;
 
-    let format = if json {
-        OutputFormat::Json
-    } else {
-        OutputFormat::Table
-    };
-
-    print_one(&response.data, format)?;
-
+    print_one(&response.data, OutputFormat::from_json_flag(json))?;
     Ok(())
 }
 
@@ -141,14 +120,7 @@ pub async fn update(
             .await?
     };
 
-    let format = if json {
-        OutputFormat::Json
-    } else {
-        OutputFormat::Table
-    };
-
-    print_one(&response.data, format)?;
-
+    print_one(&response.data, OutputFormat::from_json_flag(json))?;
     Ok(())
 }
 
@@ -173,14 +145,7 @@ pub async fn search(
         .post(&format!("/objects/{}/records/search", object), &request)
         .await?;
 
-    let format = if json {
-        OutputFormat::Json
-    } else {
-        OutputFormat::Table
-    };
-
-    print_many(&response.data, format)?;
-
+    print_many(&response.data, OutputFormat::from_json_flag(json))?;
     Ok(())
 }
 
@@ -191,10 +156,9 @@ fn get_data_input(data: Option<&str>) -> Result<serde_json::Value> {
         None => {
             // Check if stdin has data
             if atty::is(atty::Stream::Stdin) {
-                return Err(crate::error::Error::Json(serde_json::from_str::<
-                    serde_json::Value,
-                >("expected JSON data as argument or via stdin")
-                .unwrap_err()));
+                return Err(crate::error::Error::Input(
+                    "Missing JSON data. Provide as argument or pipe via stdin.".to_string(),
+                ));
             }
 
             let mut buf = String::new();
@@ -203,6 +167,5 @@ fn get_data_input(data: Option<&str>) -> Result<serde_json::Value> {
         }
     };
 
-    let value: serde_json::Value = serde_json::from_str(&input)?;
-    Ok(value)
+    serde_json::from_str(&input).map_err(Into::into)
 }

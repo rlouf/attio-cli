@@ -9,6 +9,17 @@ pub enum OutputFormat {
     Json,
 }
 
+impl OutputFormat {
+    /// Create from --json flag.
+    pub fn from_json_flag(json: bool) -> Self {
+        if json {
+            Self::Json
+        } else {
+            Self::Table
+        }
+    }
+}
+
 /// Trait for types that can be displayed as a table row.
 pub trait TableRow {
     /// Return column headers.
