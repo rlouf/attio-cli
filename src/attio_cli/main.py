@@ -1,12 +1,43 @@
 """Main CLI entry point."""
 
-import os
 from typing import Any
 
 import click
 
 from attio_cli import __version__
-from attio_cli.client import AUTH_SETUP_HINT, AttioClient, AttioError
+from attio_cli.cli_core import (
+    ATTRIBUTES_ADD_STATUS_EXAMPLES,
+    ATTRIBUTES_CREATE_EXAMPLES,
+    ATTRIBUTES_UPDATE_EXAMPLES,
+    ATTRIBUTES_UPDATE_STATUS_EXAMPLES,
+    CLI_CONTEXT_SETTINGS,
+    ENTRIES_CREATE_EXAMPLES,
+    ENTRIES_UPDATE_EXAMPLES,
+    RECORDS_CREATE_EXAMPLES,
+    RECORDS_UPDATE_EXAMPLES,
+    TASKS_CREATE_EXAMPLES,
+    AttioCommand,
+    AttioGroup,
+    show_llm_guide,
+)
+from attio_cli.client import AUTH_SETUP_HINT, AttioClient
+from attio_cli.columns import (
+    ATTRIBUTE_COLUMNS,
+    ATTRIBUTE_VALUE_COLUMNS,
+    ENTRY_COLUMNS,
+    IDENTITY_COLUMNS,
+    LIST_COLUMNS,
+    MEMBER_COLUMNS,
+    NOTE_COLUMNS,
+    OBJECT_COLUMNS,
+    OPTION_COLUMNS,
+    RECORD_COLUMNS,
+    RECORD_ENTRY_COLUMNS,
+    SEARCH_COLUMNS,
+    STATUS_COLUMNS,
+    TASK_COLUMNS,
+    WEBHOOK_COLUMNS,
+)
 from attio_cli.config import (
     AUTH_SOURCE_CONFIG,
     AUTH_SOURCE_ENV,
@@ -15,7 +46,7 @@ from attio_cli.config import (
     resolve_auth_state,
     set_api_key,
 )
-from attio_cli.output import ColumnSpec, Row, get_json_input, output_many, output_one
+from attio_cli.output import get_json_input, output_many, output_one
 
 
 def get_client() -> AttioClient:
@@ -26,487 +57,10 @@ def get_client() -> AttioClient:
     return AttioClient(api_key)
 
 
-# Column definitions for different types
-IDENTITY_COLUMNS: list[ColumnSpec] = [
-    ("WORKSPACE", lambda x: x.get("workspace", {}).get("name", "-")),
-    ("WORKSPACE ID", lambda x: x.get("workspace", {}).get("id", {}).get("workspace_id", "-")),
-    ("ACCESS TYPE", lambda x: x.get("access_type", "-")),
-]
-
-OBJECT_COLUMNS: list[ColumnSpec] = [
-    ("SLUG", lambda x: x.get("api_slug", "-")),
-    ("SINGULAR", lambda x: x.get("singular_noun", "-")),
-    ("PLURAL", lambda x: x.get("plural_noun", "-")),
-    ("ID", lambda x: x.get("id", {}).get("object_id", "-")),
-]
-
-RECORD_COLUMNS: list[ColumnSpec] = [
-    ("ID", lambda x: x.get("id", {}).get("record_id", "-")),
-    ("NAME", lambda x: _extract_name(x.get("values", {}))),
-    ("VALUES", lambda x: _truncate(str(x.get("values", {})), 60)),
-]
-
-SEARCH_COLUMNS: list[ColumnSpec] = [
-    ("RECORD ID", lambda x: x.get("id", {}).get("record_id", "-")),
-    ("OBJECT", lambda x: x.get("object_slug", "-")),
-    ("TEXT", lambda x: x.get("record_text", "-")),
-]
-
-RECORD_ENTRY_COLUMNS: list[ColumnSpec] = [
-    ("ENTRY ID", lambda x: x.get("entry_id", "-")),
-    ("LIST", lambda x: x.get("list_api_slug", "-")),
-    ("LIST ID", lambda x: x.get("list_id", "-")),
-]
-
-LIST_COLUMNS: list[ColumnSpec] = [
-    ("SLUG", lambda x: x.get("api_slug", "-")),
-    ("NAME", lambda x: x.get("name", "-")),
-    (
-        "PARENT OBJECT",
-        lambda x: ", ".join(x.get("parent_object", [])) if x.get("parent_object") else "-",
-    ),
-    ("ID", lambda x: x.get("id", {}).get("list_id", "-")),
-]
-
-ENTRY_COLUMNS: list[ColumnSpec] = [
-    ("ENTRY ID", lambda x: x.get("id", {}).get("entry_id", "-")),
-    ("RECORD ID", lambda x: x.get("parent_record_id", "-")),
-    ("VALUES", lambda x: _truncate(str(x.get("entry_values", {})), 60)),
-]
-
-TASK_COLUMNS: list[ColumnSpec] = [
-    ("ID", lambda x: x.get("id", {}).get("task_id", "-")),
-    ("CONTENT", lambda x: _truncate(x.get("content_plaintext", ""), 50)),
-    ("COMPLETED", lambda x: "Y" if x.get("is_completed") else ""),
-    ("DEADLINE", lambda x: x.get("deadline_at", "-") or "-"),
-]
-
-NOTE_COLUMNS: list[ColumnSpec] = [
-    ("ID", lambda x: x.get("id", {}).get("note_id", "-")),
-    ("TITLE", lambda x: x.get("title", "-") or "-"),
-    (
-        "PARENT",
-        lambda x: f"{x.get('parent_object', '')}:{x.get('parent_record_id', '')[:8]}"
-        if x.get("parent_record_id")
-        else "-",
-    ),
-    ("CREATED", lambda x: (x.get("created_at", "") or "")[:10] or "-"),
-]
-
-ATTRIBUTE_COLUMNS: list[ColumnSpec] = [
-    ("SLUG", lambda x: x.get("api_slug", "-")),
-    ("TITLE", lambda x: x.get("title", "-")),
-    ("TYPE", lambda x: x.get("type", "-")),
-    ("REQUIRED", lambda x: "Y" if x.get("is_required") else ""),
-    ("MULTISELECT", lambda x: "Y" if x.get("is_multiselect") else ""),
-]
-
-OPTION_COLUMNS: list[ColumnSpec] = [
-    ("ID", lambda x: x.get("id", {}).get("option_id", "-")),
-    ("TITLE", lambda x: x.get("title", "-")),
-    ("ARCHIVED", lambda x: "Y" if x.get("is_archived") else ""),
-]
-
-STATUS_COLUMNS: list[ColumnSpec] = [
-    ("ID", lambda x: x.get("id", {}).get("status_id", "-")),
-    ("TITLE", lambda x: x.get("title", "-")),
-    ("ARCHIVED", lambda x: "Y" if x.get("is_archived") else ""),
-]
-
-ATTRIBUTE_VALUE_COLUMNS: list[ColumnSpec] = [
-    ("ACTIVE FROM", lambda x: x.get("active_from", "-") or "-"),
-    ("ACTIVE UNTIL", lambda x: x.get("active_until", "-") or "-"),
-    ("TYPE", lambda x: x.get("attribute_type", "-") or "-"),
-    ("VALUE", lambda x: _summarize_value(x)),
-]
-
-MEMBER_COLUMNS: list[ColumnSpec] = [
-    ("ID", lambda x: x.get("id", {}).get("workspace_member_id", "-")),
-    ("NAME", lambda x: f"{x.get('first_name', '')} {x.get('last_name', '')}".strip() or "-"),
-    ("EMAIL", lambda x: x.get("email_address", "-") or "-"),
-    ("ACCESS", lambda x: x.get("access_level", "-") or "-"),
-]
-
-WEBHOOK_COLUMNS: list[ColumnSpec] = [
-    ("ID", lambda x: x.get("id", {}).get("webhook_id", "-")),
-    ("TARGET URL", lambda x: x.get("target_url", "-")),
-    ("STATUS", lambda x: x.get("status", "-") or "-"),
-    (
-        "SUBSCRIPTIONS",
-        lambda x: f"{len(x.get('subscriptions', []))} events" if x.get("subscriptions") else "-",
-    ),
-]
-
-
-def _extract_name(values: Row) -> str:
-    """Extract a display name from record values."""
-    for field in ["name", "full_name", "first_name", "title", "email_addresses"]:
-        if field in values:
-            val = values[field]
-            if isinstance(val, list) and val:
-                first = val[0]
-                if isinstance(first, dict):
-                    for key in ["value", "email_address", "full_name", "first_name"]:
-                        if key in first:
-                            return str(first[key])
-                else:
-                    return str(first)
-            elif val:
-                return str(val)
-    return "-"
-
-
-def _truncate(s: str, length: int) -> str:
-    """Truncate a string with ellipsis."""
-    return s[:length] + "..." if len(s) > length else s
-
-
-def _summarize_value(item: Row) -> str:
-    """Summarize an attribute value payload for table output."""
-    metadata_keys = {
-        "active_from",
-        "active_until",
-        "attribute_type",
-        "created_by_actor",
-    }
-    value = {k: v for k, v in item.items() if k not in metadata_keys}
-    return _truncate(str(value), 60) if value else "-"
-
-
 def _attribute_path(target: str, identifier: str, suffix: str = "") -> str:
     """Build an attributes API path for objects or lists."""
     base = f"/{target}/{identifier}/attributes"
     return f"{base}{suffix}"
-
-
-BANNER_LINES = [
-    "               @@@@@@@@@.",
-    "             @@@@@@@@@.%#",
-    "           .@@@@@@@@@   :@",
-    "          =@@@@@@@@@      @",
-    "         @@@@@@@@@@       @",
-    "        @@@@@@@@@*      -@",
-    "       @@@@@@@@@.      %*",
-    "      @@@@@@@@@       @. @@@@@@*",
-    "    :@@@@@@@@@       @  @@@@@@: @",
-    "   %@@@@@@@@@       @  @@@@@@    @",
-    "  @@@@@@@@@%      .@ .@@@@@@      @",
-    "  %@@@@@@@@@     #@ +@@@@@@@      @",
-    "   .@@@@@@@@@   @:  @@@@@@@@@:  .@",
-    "     @@@@@@@@@ @     @@@@@@@@@*+@",
-    "      %@@@@@@@@       .@@@@@@@@.",
-]
-BANNER_WORDMARK = "A CLI for Attio"
-LLM_GUIDE = """ATTIO CLI LLM GUIDE
-
-Purpose:
-- Use this CLI to read and modify Attio CRM data from the terminal.
-- When uncertain about a command signature, run `attio <group> --help`.
-
-Authentication:
-- Preferred: ATTIO_API_KEY environment variable.
-- Saved login: attio config login [<key>]
-- Backward-compatible alternative: attio config set api-key <key>
-- Verify auth: attio whoami
-
-Help and orientation:
-- Root help: attio --help or attio -h
-- Group help: attio <group> --help or attio <group> -h
-- Machine guide: attio --llm
-
-Output contract:
-- Default output is a human-readable table on stdout.
-- `--json` returns JSON for single-item commands.
-- `--json` returns JSONL for collection commands.
-- For automation, prefer `--json` plus `jq`.
-- Do not parse table output when IDs are needed.
-
-Identifier conventions:
-- `<object>` means an object slug such as `people`, `companies`, or a custom object slug.
-- `<record-id>` is a record UUID from `id.record_id`.
-- `<list-id>` is the list identifier used by list and entry commands.
-- `<entry-id>` is an entry UUID from `id.entry_id`.
-- `<attribute>` is usually an attribute API slug, not the display title.
-- Attribute commands default to object attributes; use `--target lists` for list attributes.
-
-Structured JSON input precedence:
-- Preferred source order for agents:
-  1. piped stdin
-  2. `--data`
-  3. `--data-file`
-  4. legacy positional JSON only for backward compatibility
-- Do not provide multiple JSON sources to the same command.
-- `--data-file -` reads JSON from stdin explicitly.
-- Empty JSON input is treated as an error.
-
-JSON-supporting options:
-- Main payload commands use `--data` and `--data-file`.
-- List/query helpers also support `--filter-file` and `--sort-file`.
-- Task array options support `--assignees-file` and `--linked-records-file`.
-- Status timing payloads support `--target-time-in-status-file`.
-
-Recommended agent workflow:
-1. Discover resource types and IDs with list/search commands.
-2. Re-run with `--json` and extract identifiers.
-3. Inspect current state with retrieve/values commands before mutation.
-4. Apply the smallest valid update payload.
-5. Retrieve again if confirmation matters.
-
-Common discovery commands:
-- attio whoami
-- attio objects list
-- attio records list <object>
-- attio records search <object> <query>
-- attio lists list
-- attio entries list <list-id>
-- attio attributes list <identifier> [--target objects|lists]
-
-Command inventory:
-- whoami
-- config: show, set
-- objects: list, retrieve
-- records: list, retrieve, create, update, search, entries, values
-- lists: list, retrieve, update
-- entries: list, retrieve, create, update, values
-- tasks: list, retrieve, create, update
-- notes: list, retrieve, create
-- attributes: list, retrieve, create, update, options, add-option, update-option, statuses, add-status, update-status
-- members: list, retrieve
-- webhooks: list, retrieve, create, update
-
-Records:
-- Create: `attio records create <object> --data '{"field": "value"}'`
-- Update: `attio records update <object> <record-id> --data '{"field": "value"}'`
-- Default update uses PATCH semantics.
-- For multiselect fields, PATCH appends values.
-- Use `--overwrite` to switch to PUT semantics and replace multiselect values.
-- Linked list entries: `attio records entries <object> <record-id>`
-- Record attribute values: `attio records values <object> <record-id> <attribute>`
-
-Lists and entries:
-- Update list: `attio lists update <list-id> --data '{"name": "New Name"}'`
-- Create entry: `attio entries create <list-id> --record-id <record-id> --data '{"field": "value"}'`
-- Update entry: `attio entries update <list-id> <entry-id> --data '{"field": "value"}'`
-- Entry updates follow the same multiselect behavior as records; use `--overwrite` to replace.
-- Entry values: `attio entries values <list-id> <entry-id> <attribute>`
-
-Attributes:
-- Default target is `objects`; use `--target lists` for list attributes.
-- Use attribute API slugs as identifiers.
-- Create with named flags for common cases: `--title`, `--type`, `--slug`
-- Use `--data` or `--data-file` for richer attribute payloads.
-- Options workflow: `options`, `add-option`, `update-option`
-- Status workflow: `statuses`, `add-status`, `update-status`
-- Status/option listing supports `--show-archived`.
-
-Tasks:
-- Create: `attio tasks create <content> [--deadline ...]`
-- Update simple fields with named flags like `--content`, `--completed`, `--deadline`.
-- Use `--assignees-file` and `--linked-records-file` for JSON arrays.
-
-Notes:
-- Supported: list, retrieve, create
-- Not supported: update
-
-Known limitations:
-- Delete operations are intentionally not implemented in this CLI.
-- Objects are read-only in this CLI.
-- List create is not implemented.
-- Note update is not implemented.
-
-Example workflows:
-- Find and update a record:
-  `attio records search people "john@example.com" --json | jq -r '.id.record_id'`
-  `echo '{"region": "EMEA"}' | attio records update people <record-id>`
-- Inspect list entry status values:
-  `attio entries values <list-id> <entry-id> status --json`
-- Update a list attribute instead of an object attribute:
-  `attio attributes update <list-id> stage --target lists --title "Pipeline Stage"`
-
-Safety:
-- Prefer inspect-first workflows before update.
-- Prefer `--json` when an agent needs IDs or structured confirmation.
-"""
-
-TOP_LEVEL_COMMAND_GROUPS = [
-    ("Getting Started", ["config", "whoami"]),
-    ("CRM Data", ["records", "entries", "notes", "tasks"]),
-    ("Schema", ["objects", "attributes", "lists"]),
-    ("Workspace", ["members", "webhooks"]),
-]
-
-RECORDS_CREATE_EXAMPLES = [
-    'attio records create people --data \'{"name": "Jane Doe"}\'',
-    'echo \'{"name": "Jane Doe", "email_addresses": ["jane@example.com"]}\' | attio records create people',
-]
-RECORDS_UPDATE_EXAMPLES = [
-    'attio records update people <record-id> --data \'{"region": "EMEA"}\'',
-    "attio records update people <record-id> --data-file record-update.json --overwrite",
-]
-ENTRIES_CREATE_EXAMPLES = [
-    "attio entries create <list-id> --record-id <record-id>",
-    'attio entries create <list-id> --record-id <record-id> --data \'{"status": "active"}\'',
-]
-ENTRIES_UPDATE_EXAMPLES = [
-    'attio entries update <list-id> <entry-id> --data \'{"status": "qualified"}\'',
-    "attio entries update <list-id> <entry-id> --data-file entry-update.json --overwrite",
-]
-ATTRIBUTES_CREATE_EXAMPLES = [
-    'attio attributes create people --title "Region" --type select --slug region',
-    "attio attributes create <list-id> --target lists --data-file attribute.json",
-]
-ATTRIBUTES_UPDATE_EXAMPLES = [
-    'attio attributes update people region --title "Sales Region"',
-    'attio attributes update <list-id> stage --target lists --data \'{"description": "Pipeline stage"}\'',
-]
-ATTRIBUTES_ADD_STATUS_EXAMPLES = [
-    'attio attributes add-status <list-id> stage --target lists --title "Qualified"',
-    "attio attributes add-status <list-id> stage --target lists --data-file status.json --target-time-in-status-file target-time.json",
-]
-ATTRIBUTES_UPDATE_STATUS_EXAMPLES = [
-    'attio attributes update-status <list-id> stage <status-id> --target lists --title "Proposal"',
-    "attio attributes update-status <list-id> stage <status-id> --target lists --archived true --target-time-in-status-file target-time.json",
-]
-TASKS_CREATE_EXAMPLES = [
-    'attio tasks create "Follow up with client" --deadline "2026-03-12T10:00:00Z"',
-    'attio tasks create "Prep QBR" --assignees-file assignees.json --linked-records-file linked-records.json',
-]
-
-
-def _render_banner() -> str:
-    """Render the help banner with a centered wordmark."""
-    width = max(len(line) for line in BANNER_LINES)
-    wordmark = BANNER_WORDMARK.center(width)
-    return "\n".join([*BANNER_LINES, "", wordmark])
-
-
-def _should_show_banner(ctx: click.Context) -> bool:
-    """Show the banner only for root help in interactive terminals."""
-    if ctx.parent is not None:
-        return False
-    if os.environ.get("ATTIO_NO_BANNER") == "1":
-        return False
-
-    stream = click.get_text_stream("stdout")
-    return hasattr(stream, "isatty") and stream.isatty()
-
-
-class AttioGroup(click.Group):
-    """Click group with a banner on root help output."""
-
-    def invoke(self, ctx: click.Context) -> object:
-        """Normalize API errors into consistent Click-style CLI output."""
-        try:
-            return super().invoke(ctx)
-        except AttioError as exc:
-            raise click.ClickException(exc.format_for_cli()) from None
-
-    def get_help(self, ctx: click.Context) -> str:
-        """Render help output, prefixing the banner for interactive root help."""
-        help_text = super().get_help(ctx)
-        if not _should_show_banner(ctx):
-            return help_text
-        return f"{_render_banner()}\n\n{help_text}"
-
-    def format_commands(self, ctx: click.Context, formatter: click.HelpFormatter) -> None:
-        """Group top-level commands by workflow in root help output."""
-        if ctx.parent is not None:
-            super().format_commands(ctx, formatter)
-            return
-
-        visible_commands = {}
-        for name in self.list_commands(ctx):
-            command = self.get_command(ctx, name)
-            if command is None or command.hidden:
-                continue
-            visible_commands[name] = command
-
-        if not visible_commands:
-            return
-
-        formatter.write_paragraph()
-        emitted = set()
-        sections = []
-
-        for title, command_names in TOP_LEVEL_COMMAND_GROUPS:
-            rows = []
-            for name in command_names:
-                command = visible_commands.get(name)
-                if command is None:
-                    continue
-                emitted.add(name)
-                rows.append((name, command.get_short_help_str()))
-            if rows:
-                sections.append((title, rows))
-
-        other_rows = []
-        for name in self.list_commands(ctx):
-            if name in emitted or name not in visible_commands:
-                continue
-            other_rows.append((name, visible_commands[name].get_short_help_str()))
-        if other_rows:
-            sections.append(("Other Commands", other_rows))
-
-        for index, (title, rows) in enumerate(sections):
-            with formatter.section(title):
-                formatter.write_dl(rows)
-            if index < len(sections) - 1:
-                formatter.write_paragraph()
-
-
-class AttioCommand(click.Command):
-    """Click command with optional examples and cross-references."""
-
-    def __init__(
-        self,
-        *args,
-        examples: list[str] | None = None,
-        see_also: list[str] | None = None,
-        **kwargs,
-    ):
-        self.examples = examples or []
-        self.see_also = see_also or []
-        super().__init__(*args, **kwargs)
-
-    def format_help(self, ctx: click.Context, formatter: click.HelpFormatter) -> None:
-        """Render standard help plus optional example sections."""
-        self.format_usage(ctx, formatter)
-        self.format_help_text(ctx, formatter)
-        self.format_options(ctx, formatter)
-        self._format_examples(formatter)
-        self._format_see_also(formatter)
-        self.format_epilog(ctx, formatter)
-
-    def _format_examples(self, formatter: click.HelpFormatter) -> None:
-        """Append a section of task-oriented examples."""
-        if not self.examples:
-            return
-        formatter.write_paragraph()
-        with formatter.section("Examples"):
-            for index, example in enumerate(self.examples):
-                formatter.write_text(example)
-                if index < len(self.examples) - 1:
-                    formatter.write_paragraph()
-
-    def _format_see_also(self, formatter: click.HelpFormatter) -> None:
-        """Append related commands when provided."""
-        if not self.see_also:
-            return
-        formatter.write_paragraph()
-        with formatter.section("See Also"):
-            for related in self.see_also:
-                formatter.write_text(related)
-
-
-def _show_llm_guide(ctx: click.Context, _param: click.Parameter, value: bool) -> None:
-    """Print the LLM-oriented operating guide and exit."""
-    if not value or ctx.resilient_parsing:
-        return
-    click.echo(LLM_GUIDE)
-    ctx.exit()
-
-
-CLI_CONTEXT_SETTINGS = {"help_option_names": ["-h", "--help"]}
 
 
 @click.group(cls=AttioGroup, context_settings=CLI_CONTEXT_SETTINGS)
@@ -515,7 +69,7 @@ CLI_CONTEXT_SETTINGS = {"help_option_names": ["-h", "--help"]}
     is_flag=True,
     is_eager=True,
     expose_value=False,
-    callback=_show_llm_guide,
+    callback=show_llm_guide,
     help="Print a machine-oriented usage guide and exit.",
 )
 @click.version_option(version=__version__)

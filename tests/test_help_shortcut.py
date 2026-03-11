@@ -40,7 +40,7 @@ def test_root_help_hides_banner_for_non_tty():
 def test_root_help_shows_banner_for_tty():
     runner = CliRunner()
 
-    with patch("attio_cli.main._should_show_banner", return_value=True):
+    with patch("attio_cli.cli_core.should_show_banner", return_value=True):
         result = runner.invoke(cli, ["--help"], color=False)
 
     assert result.exit_code == 0
