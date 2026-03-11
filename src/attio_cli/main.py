@@ -44,6 +44,12 @@ SEARCH_COLUMNS = [
     ("TEXT", lambda x: x.get("record_text", "-")),
 ]
 
+RECORD_ENTRY_COLUMNS = [
+    ("ENTRY ID", lambda x: x.get("entry_id", "-")),
+    ("LIST", lambda x: x.get("list_api_slug", "-")),
+    ("LIST ID", lambda x: x.get("list_id", "-")),
+]
+
 LIST_COLUMNS = [
     ("SLUG", lambda x: x.get("api_slug", "-")),
     ("NAME", lambda x: x.get("name", "-")),
@@ -99,6 +105,13 @@ STATUS_COLUMNS = [
     ("ARCHIVED", lambda x: "Y" if x.get("is_archived") else ""),
 ]
 
+ATTRIBUTE_VALUE_COLUMNS = [
+    ("ACTIVE FROM", lambda x: x.get("active_from", "-") or "-"),
+    ("ACTIVE UNTIL", lambda x: x.get("active_until", "-") or "-"),
+    ("TYPE", lambda x: x.get("attribute_type", "-") or "-"),
+    ("VALUE", lambda x: _summarize_value(x)),
+]
+
 MEMBER_COLUMNS = [
     ("ID", lambda x: x.get("id", {}).get("workspace_member_id", "-")),
     ("NAME", lambda x: f"{x.get('first_name', '')} {x.get('last_name', '')}".strip() or "-"),
@@ -138,6 +151,18 @@ def _extract_name(values: dict) -> str:
 def _truncate(s: str, length: int) -> str:
     """Truncate a string with ellipsis."""
     return s[:length] + "..." if len(s) > length else s
+
+
+def _summarize_value(item: dict) -> str:
+    """Summarize an attribute value payload for table output."""
+    metadata_keys = {
+        "active_from",
+        "active_until",
+        "attribute_type",
+        "created_by_actor",
+    }
+    value = {k: v for k, v in item.items() if k not in metadata_keys}
+    return _truncate(str(value), 60) if value else "-"
 
 
 @click.group()
@@ -313,6 +338,59 @@ def records_search(object: str, query: str, limit: int, as_json: bool):
     with get_client() as client:
         response = client.post("/objects/records/search", body)
         output_many(response["data"], SEARCH_COLUMNS, as_json)
+
+
+@records.command("entries")
+@click.argument("object")
+@click.argument("record_id")
+@click.option("--limit", type=int, help="Maximum number of entries")
+@click.option("--offset", type=int, help="Number of entries to skip")
+@click.option("--json", "as_json", is_flag=True, help="Output as JSONL")
+def records_entries(object: str, record_id: str, limit: int, offset: int, as_json: bool):
+    """List list entries linked to a record."""
+    params = {}
+    if limit:
+        params["limit"] = limit
+    if offset:
+        params["offset"] = offset
+
+    with get_client() as client:
+        response = client.get(f"/objects/{object}/records/{record_id}/entries", params=params)
+        output_many(response["data"], RECORD_ENTRY_COLUMNS, as_json)
+
+
+@records.command("values")
+@click.argument("object")
+@click.argument("record_id")
+@click.argument("attribute")
+@click.option("--show-historic", is_flag=True, help="Include historic values")
+@click.option("--limit", type=int, help="Maximum number of values")
+@click.option("--offset", type=int, help="Number of values to skip")
+@click.option("--json", "as_json", is_flag=True, help="Output as JSONL")
+def records_values(
+    object: str,
+    record_id: str,
+    attribute: str,
+    show_historic: bool,
+    limit: int,
+    offset: int,
+    as_json: bool,
+):
+    """List values for a record attribute."""
+    params = {}
+    if show_historic:
+        params["show_historic"] = "true"
+    if limit:
+        params["limit"] = limit
+    if offset:
+        params["offset"] = offset
+
+    with get_client() as client:
+        response = client.get(
+            f"/objects/{object}/records/{record_id}/attributes/{attribute}/values",
+            params=params,
+        )
+        output_many(response["data"], ATTRIBUTE_VALUE_COLUMNS, as_json)
 
 
 # ============== Lists Commands ==============

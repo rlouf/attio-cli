@@ -52,9 +52,9 @@ class AttioClient:
         else:
             raise AttioError(f"API error ({status}): {message}")
 
-    def get(self, path: str) -> dict[str, Any]:
+    def get(self, path: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
         """Make a GET request."""
-        response = self._client.get(path)
+        response = self._client.get(path, params=params)
         return self._handle_response(response)
 
     def post(self, path: str, json: dict[str, Any] | None = None) -> dict[str, Any]:
