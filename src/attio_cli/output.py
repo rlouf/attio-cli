@@ -88,28 +88,83 @@ def read_stdin() -> str:
     return sys.stdin.read()
 
 
-def get_json_input(data: str | None) -> dict:
-    """Get JSON input from argument or stdin.
+def _load_json(text: str, context: str) -> Any:
+    """Load JSON text with a consistent error message."""
+    import click
+
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError as e:
+        raise click.ClickException(f"Invalid JSON for {context}: {e}") from None
+
+
+def _read_json_file(path: str) -> str:
+    """Read JSON content from a file path or stdin."""
+    if path == "-":
+        return read_stdin()
+
+    with open(path) as f:
+        return f.read()
+
+
+def get_json_input(
+    positional_data: str | None = None,
+    *,
+    data: str | None = None,
+    data_file: str | None = None,
+    required: bool = True,
+    context: str = "input",
+    allow_stdin: bool = True,
+) -> Any:
+    """Get JSON input from a single supported source.
 
     Args:
-        data: JSON string or None to read from stdin
+        positional_data: Legacy positional JSON string
+        data: JSON string from an explicit flag
+        data_file: File path to read JSON from, or '-' for stdin
+        required: Whether a value must be provided
+        context: Context name for error messages
+        allow_stdin: Whether piped stdin is accepted as an implicit source
 
     Returns:
-        Parsed JSON as dictionary
+        Parsed JSON value
 
     Raises:
-        click.ClickException: If no data provided or invalid JSON
+        click.ClickException: If inputs conflict, are missing, or invalid
     """
     import click
 
-    if data:
-        input_str = data
-    elif is_stdin_piped():
-        input_str = read_stdin()
-    else:
-        raise click.ClickException("Missing JSON data. Provide as argument or pipe via stdin.")
+    explicit_sources = [
+        name
+        for name, value in [
+            ("positional argument", positional_data),
+            ("--data", data),
+            ("--data-file", data_file),
+        ]
+        if value is not None
+    ]
+    if len(explicit_sources) > 1:
+        joined = ", ".join(explicit_sources)
+        raise click.ClickException(f"Provide {context} via only one source, not: {joined}")
 
-    try:
-        return json.loads(input_str)
-    except json.JSONDecodeError as e:
-        raise click.ClickException(f"Invalid JSON: {e}") from None
+    if positional_data is not None:
+        input_str = positional_data
+    elif data is not None:
+        input_str = data
+    elif data_file is not None:
+        input_str = _read_json_file(data_file)
+    elif allow_stdin and is_stdin_piped():
+        input_str = read_stdin()
+    elif required:
+        raise click.ClickException(
+            f"Missing {context}. Provide --data, --data-file, a positional JSON argument, or pipe via stdin."
+        )
+    else:
+        return None
+
+    if not input_str.strip():
+        if required:
+            raise click.ClickException(f"Missing {context}. JSON input was empty.")
+        return None
+
+    return _load_json(input_str, context)

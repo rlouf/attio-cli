@@ -5,13 +5,7 @@ import click
 from attio_cli import __version__
 from attio_cli.client import AttioClient
 from attio_cli.config import get_api_key, get_config_path, load_config, set_api_key
-from attio_cli.output import (
-    get_json_input,
-    is_stdin_piped,
-    output_many,
-    output_one,
-    read_stdin,
-)
+from attio_cli.output import get_json_input, output_many, output_one
 
 
 def get_client() -> AttioClient:
@@ -171,45 +165,16 @@ def _summarize_value(item: dict) -> str:
     return _truncate(str(value), 60) if value else "-"
 
 
-def _get_optional_json_input(data: str | None) -> dict | None:
-    """Get optional JSON input from an argument or stdin."""
-    import json as json_mod
-
-    if data:
-        input_str = data
-    elif is_stdin_piped():
-        input_str = read_stdin().strip()
-        if not input_str:
-            return None
-    else:
-        return None
-
-    try:
-        return json_mod.loads(input_str)
-    except json_mod.JSONDecodeError as e:
-        raise click.ClickException(f"Invalid JSON: {e}") from None
-
-
-def _parse_json_option(value: str | None, option_name: str) -> dict | list | None:
-    """Parse an optional JSON option."""
-    import json as json_mod
-
-    if value is None:
-        return None
-
-    try:
-        return json_mod.loads(value)
-    except json_mod.JSONDecodeError as e:
-        raise click.ClickException(f"Invalid JSON for {option_name}: {e}") from None
-
-
 def _attribute_path(target: str, identifier: str, suffix: str = "") -> str:
     """Build an attributes API path for objects or lists."""
     base = f"/{target}/{identifier}/attributes"
     return f"{base}{suffix}"
 
 
-@click.group()
+CLI_CONTEXT_SETTINGS = {"help_option_names": ["-h", "--help"]}
+
+
+@click.group(context_settings=CLI_CONTEXT_SETTINGS)
 @click.version_option(version=__version__)
 def cli():
     """CLI for interacting with Attio CRM API."""
@@ -304,23 +269,46 @@ def records():
 @click.option("--limit", type=int, help="Maximum number of records")
 @click.option("--offset", type=int, help="Number of records to skip")
 @click.option("--filter", "filter_json", help="Filter as JSON")
+@click.option("--filter-file", help="Read filter JSON from file or '-' for stdin")
 @click.option("--sort", "sort_json", help="Sort as JSON")
+@click.option("--sort-file", help="Read sort JSON from file or '-' for stdin")
 @click.option("--json", "as_json", is_flag=True, help="Output as JSONL")
 def records_list(
-    object: str, limit: int, offset: int, filter_json: str, sort_json: str, as_json: bool
+    object: str,
+    limit: int,
+    offset: int,
+    filter_json: str,
+    filter_file: str,
+    sort_json: str,
+    sort_file: str,
+    as_json: bool,
 ):
     """List records of an object type."""
-    import json as json_mod
-
     query = {}
     if limit:
         query["limit"] = limit
     if offset:
         query["offset"] = offset
-    if filter_json:
-        query["filter"] = json_mod.loads(filter_json)
-    if sort_json:
-        query["sorts"] = json_mod.loads(sort_json)
+
+    filter_value = get_json_input(
+        data=filter_json,
+        data_file=filter_file,
+        required=False,
+        context="filter JSON",
+        allow_stdin=False,
+    )
+    if filter_value is not None:
+        query["filter"] = filter_value
+
+    sort_value = get_json_input(
+        data=sort_json,
+        data_file=sort_file,
+        required=False,
+        context="sort JSON",
+        allow_stdin=False,
+    )
+    if sort_value is not None:
+        query["sorts"] = sort_value
 
     with get_client() as client:
         response = client.post(f"/objects/{object}/records/query", query)
@@ -341,10 +329,17 @@ def records_retrieve(object: str, record_id: str, as_json: bool):
 @records.command("create")
 @click.argument("object")
 @click.argument("data", required=False)
+@click.option("--data", "data_json", help="Record values as JSON")
+@click.option("--data-file", help="Read record values JSON from file or '-' for stdin")
 @click.option("--json", "as_json", is_flag=True, help="Output as JSON")
-def records_create(object: str, data: str, as_json: bool):
+def records_create(object: str, data: str, data_json: str, data_file: str, as_json: bool):
     """Create a new record."""
-    values = get_json_input(data)
+    values = get_json_input(
+        data,
+        data=data_json,
+        data_file=data_file,
+        context="record values JSON",
+    )
     with get_client() as client:
         response = client.post(f"/objects/{object}/records", {"data": {"values": values}})
         output_one(response["data"], RECORD_COLUMNS, as_json)
@@ -354,11 +349,26 @@ def records_create(object: str, data: str, as_json: bool):
 @click.argument("object")
 @click.argument("record_id")
 @click.argument("data", required=False)
+@click.option("--data", "data_json", help="Record values as JSON")
+@click.option("--data-file", help="Read record values JSON from file or '-' for stdin")
 @click.option("--overwrite", is_flag=True, help="Overwrite multiselect values")
 @click.option("--json", "as_json", is_flag=True, help="Output as JSON")
-def records_update(object: str, record_id: str, data: str, overwrite: bool, as_json: bool):
+def records_update(
+    object: str,
+    record_id: str,
+    data: str,
+    data_json: str,
+    data_file: str,
+    overwrite: bool,
+    as_json: bool,
+):
     """Update a record."""
-    values = get_json_input(data)
+    values = get_json_input(
+        data,
+        data=data_json,
+        data_file=data_file,
+        context="record values JSON",
+    )
     with get_client() as client:
         body = {"data": {"values": values}}
         if overwrite:
@@ -468,10 +478,17 @@ def lists_retrieve(list_id: str, as_json: bool):
 @lists.command("update")
 @click.argument("list_id")
 @click.argument("data", required=False)
+@click.option("--data", "data_json", help="List update payload as JSON")
+@click.option("--data-file", help="Read list update JSON from file or '-' for stdin")
 @click.option("--json", "as_json", is_flag=True, help="Output as JSON")
-def lists_update(list_id: str, data: str, as_json: bool):
+def lists_update(list_id: str, data: str, data_json: str, data_file: str, as_json: bool):
     """Update a list."""
-    payload = get_json_input(data)
+    payload = get_json_input(
+        data,
+        data=data_json,
+        data_file=data_file,
+        context="list update JSON",
+    )
     with get_client() as client:
         response = client.patch(f"/lists/{list_id}", {"data": payload})
         output_one(response["data"], LIST_COLUMNS, as_json)
@@ -491,23 +508,46 @@ def entries():
 @click.option("--limit", type=int, help="Maximum number of entries")
 @click.option("--offset", type=int, help="Number of entries to skip")
 @click.option("--filter", "filter_json", help="Filter as JSON")
+@click.option("--filter-file", help="Read filter JSON from file or '-' for stdin")
 @click.option("--sort", "sort_json", help="Sort as JSON")
+@click.option("--sort-file", help="Read sort JSON from file or '-' for stdin")
 @click.option("--json", "as_json", is_flag=True, help="Output as JSONL")
 def entries_list(
-    list_id: str, limit: int, offset: int, filter_json: str, sort_json: str, as_json: bool
+    list_id: str,
+    limit: int,
+    offset: int,
+    filter_json: str,
+    filter_file: str,
+    sort_json: str,
+    sort_file: str,
+    as_json: bool,
 ):
     """List entries in a list."""
-    import json as json_mod
-
     query = {}
     if limit:
         query["limit"] = limit
     if offset:
         query["offset"] = offset
-    if filter_json:
-        query["filter"] = json_mod.loads(filter_json)
-    if sort_json:
-        query["sorts"] = json_mod.loads(sort_json)
+
+    filter_value = get_json_input(
+        data=filter_json,
+        data_file=filter_file,
+        required=False,
+        context="filter JSON",
+        allow_stdin=False,
+    )
+    if filter_value is not None:
+        query["filter"] = filter_value
+
+    sort_value = get_json_input(
+        data=sort_json,
+        data_file=sort_file,
+        required=False,
+        context="sort JSON",
+        allow_stdin=False,
+    )
+    if sort_value is not None:
+        query["sorts"] = sort_value
 
     with get_client() as client:
         response = client.post(f"/lists/{list_id}/entries/query", query)
@@ -529,23 +569,28 @@ def entries_retrieve(list_id: str, entry_id: str, as_json: bool):
 @click.argument("list_id")
 @click.option("--record-id", required=True, help="Record ID to add")
 @click.argument("data", required=False)
+@click.option("--data", "data_json", help="Entry values as JSON")
+@click.option("--data-file", help="Read entry values JSON from file or '-' for stdin")
 @click.option("--json", "as_json", is_flag=True, help="Output as JSON")
-def entries_create(list_id: str, record_id: str, data: str, as_json: bool):
+def entries_create(
+    list_id: str,
+    record_id: str,
+    data: str,
+    data_json: str,
+    data_file: str,
+    as_json: bool,
+):
     """Add a record to a list."""
-    import json as json_mod
-
-    from attio_cli.output import is_stdin_piped, read_stdin
-
-    entry_values = None
-    if data:
-        entry_values = json_mod.loads(data)
-    elif is_stdin_piped():
-        stdin_data = read_stdin().strip()
-        if stdin_data:
-            entry_values = json_mod.loads(stdin_data)
+    entry_values = get_json_input(
+        data,
+        data=data_json,
+        data_file=data_file,
+        required=False,
+        context="entry values JSON",
+    )
 
     body = {"data": {"parent_record_id": record_id}}
-    if entry_values:
+    if entry_values is not None:
         body["data"]["entry_values"] = entry_values
 
     with get_client() as client:
@@ -557,11 +602,26 @@ def entries_create(list_id: str, record_id: str, data: str, as_json: bool):
 @click.argument("list_id")
 @click.argument("entry_id")
 @click.argument("data", required=False)
+@click.option("--data", "data_json", help="Entry values as JSON")
+@click.option("--data-file", help="Read entry values JSON from file or '-' for stdin")
 @click.option("--overwrite", is_flag=True, help="Overwrite multiselect values")
 @click.option("--json", "as_json", is_flag=True, help="Output as JSON")
-def entries_update(list_id: str, entry_id: str, data: str, overwrite: bool, as_json: bool):
+def entries_update(
+    list_id: str,
+    entry_id: str,
+    data: str,
+    data_json: str,
+    data_file: str,
+    overwrite: bool,
+    as_json: bool,
+):
     """Update an entry."""
-    values = get_json_input(data)
+    values = get_json_input(
+        data,
+        data=data_json,
+        data_file=data_file,
+        context="entry values JSON",
+    )
     body = {"data": {"entry_values": values}}
 
     with get_client() as client:
@@ -646,19 +706,44 @@ def tasks_retrieve(task_id: str, as_json: bool):
 @click.argument("content")
 @click.option("--deadline", help="Deadline (ISO 8601 format)")
 @click.option("--assignees", help="Assignees as JSON array")
+@click.option("--assignees-file", help="Read assignees JSON from file or '-' for stdin")
 @click.option("--linked-records", help="Linked records as JSON array")
+@click.option(
+    "--linked-records-file",
+    help="Read linked records JSON from file or '-' for stdin",
+)
 @click.option("--json", "as_json", is_flag=True, help="Output as JSON")
-def tasks_create(content: str, deadline: str, assignees: str, linked_records: str, as_json: bool):
+def tasks_create(
+    content: str,
+    deadline: str,
+    assignees: str,
+    assignees_file: str,
+    linked_records: str,
+    linked_records_file: str,
+    as_json: bool,
+):
     """Create a new task."""
-    import json as json_mod
-
     data = {"content": content, "format": "plaintext"}
     if deadline:
         data["deadline_at"] = deadline
-    if assignees:
-        data["assignees"] = json_mod.loads(assignees)
-    if linked_records:
-        data["linked_records"] = json_mod.loads(linked_records)
+    assignee_value = get_json_input(
+        data=assignees,
+        data_file=assignees_file,
+        required=False,
+        context="assignees JSON",
+        allow_stdin=False,
+    )
+    if assignee_value is not None:
+        data["assignees"] = assignee_value
+    linked_record_value = get_json_input(
+        data=linked_records,
+        data_file=linked_records_file,
+        required=False,
+        context="linked records JSON",
+        allow_stdin=False,
+    )
+    if linked_record_value is not None:
+        data["linked_records"] = linked_record_value
 
     with get_client() as client:
         response = client.post("/tasks", {"data": data})
@@ -800,6 +885,8 @@ def attributes_retrieve(identifier: str, attribute: str, target: str, as_json: b
 @attributes.command("create")
 @click.argument("identifier")
 @click.argument("data", required=False)
+@click.option("--data", "data_json", help="Attribute payload as JSON")
+@click.option("--data-file", help="Read attribute JSON from file or '-' for stdin")
 @click.option(
     "--target",
     type=click.Choice(["objects", "lists"]),
@@ -814,6 +901,8 @@ def attributes_retrieve(identifier: str, attribute: str, target: str, as_json: b
 def attributes_create(
     identifier: str,
     data: str,
+    data_json: str,
+    data_file: str,
     target: str,
     title: str,
     attr_type: str,
@@ -821,7 +910,13 @@ def attributes_create(
     as_json: bool,
 ):
     """Create a new attribute."""
-    payload = _get_optional_json_input(data) or {}
+    payload = get_json_input(
+        data,
+        data=data_json,
+        data_file=data_file,
+        required=False,
+        context="attribute JSON",
+    ) or {}
     if title is not None:
         payload["title"] = title
     if attr_type is not None:
@@ -843,6 +938,8 @@ def attributes_create(
 @click.argument("identifier")
 @click.argument("attribute")
 @click.argument("data", required=False)
+@click.option("--data", "data_json", help="Attribute update payload as JSON")
+@click.option("--data-file", help="Read attribute update JSON from file or '-' for stdin")
 @click.option(
     "--target",
     type=click.Choice(["objects", "lists"]),
@@ -857,13 +954,21 @@ def attributes_update(
     identifier: str,
     attribute: str,
     data: str,
+    data_json: str,
+    data_file: str,
     target: str,
     title: str,
     slug: str,
     as_json: bool,
 ):
     """Update an attribute."""
-    payload = _get_optional_json_input(data) or {}
+    payload = get_json_input(
+        data,
+        data=data_json,
+        data_file=data_file,
+        required=False,
+        context="attribute update JSON",
+    ) or {}
     if title:
         payload["title"] = title
     if slug:
@@ -906,6 +1011,8 @@ def attributes_options(identifier: str, attribute: str, target: str, show_archiv
 @click.argument("identifier")
 @click.argument("attribute")
 @click.argument("data", required=False)
+@click.option("--data", "data_json", help="Option payload as JSON")
+@click.option("--data-file", help="Read option JSON from file or '-' for stdin")
 @click.option(
     "--target",
     type=click.Choice(["objects", "lists"]),
@@ -919,12 +1026,20 @@ def attributes_add_option(
     identifier: str,
     attribute: str,
     data: str,
+    data_json: str,
+    data_file: str,
     target: str,
     title: str,
     as_json: bool,
 ):
     """Add a select option."""
-    payload = _get_optional_json_input(data) or {}
+    payload = get_json_input(
+        data,
+        data=data_json,
+        data_file=data_file,
+        required=False,
+        context="option JSON",
+    ) or {}
     if title is not None:
         payload["title"] = title
     if not payload:
@@ -943,6 +1058,8 @@ def attributes_add_option(
 @click.argument("attribute")
 @click.argument("option_id")
 @click.argument("data", required=False)
+@click.option("--data", "data_json", help="Option update payload as JSON")
+@click.option("--data-file", help="Read option update JSON from file or '-' for stdin")
 @click.option(
     "--target",
     type=click.Choice(["objects", "lists"]),
@@ -958,13 +1075,21 @@ def attributes_update_option(
     attribute: str,
     option_id: str,
     data: str,
+    data_json: str,
+    data_file: str,
     target: str,
     title: str,
     archived: bool,
     as_json: bool,
 ):
     """Update a select option."""
-    payload = _get_optional_json_input(data) or {}
+    payload = get_json_input(
+        data,
+        data=data_json,
+        data_file=data_file,
+        required=False,
+        context="option update JSON",
+    ) or {}
     if title:
         payload["title"] = title
     if archived is not None:
@@ -1013,6 +1138,8 @@ def attributes_statuses(
 @click.argument("identifier")
 @click.argument("attribute")
 @click.argument("data", required=False)
+@click.option("--data", "data_json", help="Status payload as JSON")
+@click.option("--data-file", help="Read status JSON from file or '-' for stdin")
 @click.option(
     "--target",
     type=click.Choice(["objects", "lists"]),
@@ -1023,26 +1150,42 @@ def attributes_statuses(
 @click.option("--title", help="Status title")
 @click.option("--celebration-enabled", type=bool, help="Whether celebration is enabled")
 @click.option("--target-time-in-status", help="Target time in status as JSON")
+@click.option(
+    "--target-time-in-status-file",
+    help="Read target time in status JSON from file or '-' for stdin",
+)
 @click.option("--json", "as_json", is_flag=True, help="Output as JSON")
 def attributes_add_status(
     identifier: str,
     attribute: str,
     data: str,
+    data_json: str,
+    data_file: str,
     target: str,
     title: str,
     celebration_enabled: bool,
     target_time_in_status: str,
+    target_time_in_status_file: str,
     as_json: bool,
 ):
     """Add a status option."""
-    payload = _get_optional_json_input(data) or {}
+    payload = get_json_input(
+        data,
+        data=data_json,
+        data_file=data_file,
+        required=False,
+        context="status JSON",
+    ) or {}
     if title is not None:
         payload["title"] = title
     if celebration_enabled is not None:
         payload["celebration_enabled"] = celebration_enabled
-    target_time_payload = _parse_json_option(
-        target_time_in_status,
-        "--target-time-in-status",
+    target_time_payload = get_json_input(
+        data=target_time_in_status,
+        data_file=target_time_in_status_file,
+        required=False,
+        context="target time in status JSON",
+        allow_stdin=False,
     )
     if target_time_payload is not None:
         payload["target_time_in_status"] = target_time_payload
@@ -1062,6 +1205,8 @@ def attributes_add_status(
 @click.argument("attribute")
 @click.argument("status_id")
 @click.argument("data", required=False)
+@click.option("--data", "data_json", help="Status update payload as JSON")
+@click.option("--data-file", help="Read status update JSON from file or '-' for stdin")
 @click.option(
     "--target",
     type=click.Choice(["objects", "lists"]),
@@ -1073,30 +1218,46 @@ def attributes_add_status(
 @click.option("--archived", type=bool, help="Whether the status is archived")
 @click.option("--celebration-enabled", type=bool, help="Whether celebration is enabled")
 @click.option("--target-time-in-status", help="Target time in status as JSON")
+@click.option(
+    "--target-time-in-status-file",
+    help="Read target time in status JSON from file or '-' for stdin",
+)
 @click.option("--json", "as_json", is_flag=True, help="Output as JSON")
 def attributes_update_status(
     identifier: str,
     attribute: str,
     status_id: str,
     data: str,
+    data_json: str,
+    data_file: str,
     target: str,
     title: str,
     archived: bool,
     celebration_enabled: bool,
     target_time_in_status: str,
+    target_time_in_status_file: str,
     as_json: bool,
 ):
     """Update a status option."""
-    payload = _get_optional_json_input(data) or {}
+    payload = get_json_input(
+        data,
+        data=data_json,
+        data_file=data_file,
+        required=False,
+        context="status update JSON",
+    ) or {}
     if title:
         payload["title"] = title
     if archived is not None:
         payload["is_archived"] = archived
     if celebration_enabled is not None:
         payload["celebration_enabled"] = celebration_enabled
-    target_time_payload = _parse_json_option(
-        target_time_in_status,
-        "--target-time-in-status",
+    target_time_payload = get_json_input(
+        data=target_time_in_status,
+        data_file=target_time_in_status_file,
+        required=False,
+        context="target time in status JSON",
+        allow_stdin=False,
     )
     if target_time_payload is not None:
         payload["target_time_in_status"] = target_time_payload
