@@ -6,7 +6,7 @@ from typing import Any
 import httpx
 
 BASE_URL = "https://api.attio.com/v2"
-AUTH_SETUP_HINT = "Set ATTIO_API_KEY or run: attio config set api-key <key>"
+AUTH_SETUP_HINT = "Set ATTIO_API_KEY or run: attio config login"
 
 
 @dataclass

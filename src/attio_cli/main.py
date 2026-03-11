@@ -6,7 +6,14 @@ import click
 
 from attio_cli import __version__
 from attio_cli.client import AUTH_SETUP_HINT, AttioClient, AttioError
-from attio_cli.config import get_api_key, get_config_path, load_config, set_api_key
+from attio_cli.config import (
+    AUTH_SOURCE_CONFIG,
+    AUTH_SOURCE_ENV,
+    delete_api_key,
+    get_api_key,
+    resolve_auth_state,
+    set_api_key,
+)
 from attio_cli.output import get_json_input, output_many, output_one
 
 
@@ -197,7 +204,8 @@ Purpose:
 
 Authentication:
 - Preferred: ATTIO_API_KEY environment variable.
-- Alternative: attio config set api-key <key>
+- Saved login: attio config login [<key>]
+- Backward-compatible alternative: attio config set api-key <key>
 - Verify auth: attio whoami
 
 Help and orientation:
@@ -326,6 +334,43 @@ TOP_LEVEL_COMMAND_GROUPS = [
     ("Workspace", ["members", "webhooks"]),
 ]
 
+RECORDS_CREATE_EXAMPLES = [
+    "attio records create people --data '{\"name\": \"Jane Doe\"}'",
+    "echo '{\"name\": \"Jane Doe\", \"email_addresses\": [\"jane@example.com\"]}' | attio records create people",
+]
+RECORDS_UPDATE_EXAMPLES = [
+    "attio records update people <record-id> --data '{\"region\": \"EMEA\"}'",
+    "attio records update people <record-id> --data-file record-update.json --overwrite",
+]
+ENTRIES_CREATE_EXAMPLES = [
+    "attio entries create <list-id> --record-id <record-id>",
+    "attio entries create <list-id> --record-id <record-id> --data '{\"status\": \"active\"}'",
+]
+ENTRIES_UPDATE_EXAMPLES = [
+    "attio entries update <list-id> <entry-id> --data '{\"status\": \"qualified\"}'",
+    "attio entries update <list-id> <entry-id> --data-file entry-update.json --overwrite",
+]
+ATTRIBUTES_CREATE_EXAMPLES = [
+    "attio attributes create people --title \"Region\" --type select --slug region",
+    "attio attributes create <list-id> --target lists --data-file attribute.json",
+]
+ATTRIBUTES_UPDATE_EXAMPLES = [
+    "attio attributes update people region --title \"Sales Region\"",
+    "attio attributes update <list-id> stage --target lists --data '{\"description\": \"Pipeline stage\"}'",
+]
+ATTRIBUTES_ADD_STATUS_EXAMPLES = [
+    "attio attributes add-status <list-id> stage --target lists --title \"Qualified\"",
+    "attio attributes add-status <list-id> stage --target lists --data-file status.json --target-time-in-status-file target-time.json",
+]
+ATTRIBUTES_UPDATE_STATUS_EXAMPLES = [
+    "attio attributes update-status <list-id> stage <status-id> --target lists --title \"Proposal\"",
+    "attio attributes update-status <list-id> stage <status-id> --target lists --archived true --target-time-in-status-file target-time.json",
+]
+TASKS_CREATE_EXAMPLES = [
+    "attio tasks create \"Follow up with client\" --deadline \"2026-03-12T10:00:00Z\"",
+    "attio tasks create \"Prep QBR\" --assignees-file assignees.json --linked-records-file linked-records.json",
+]
+
 
 def _render_banner() -> str:
     """Render the help banner with a centered wordmark."""
@@ -408,6 +453,50 @@ class AttioGroup(click.Group):
                 formatter.write_paragraph()
 
 
+class AttioCommand(click.Command):
+    """Click command with optional examples and cross-references."""
+
+    def __init__(
+        self,
+        *args,
+        examples: list[str] | None = None,
+        see_also: list[str] | None = None,
+        **kwargs,
+    ):
+        self.examples = examples or []
+        self.see_also = see_also or []
+        super().__init__(*args, **kwargs)
+
+    def format_help(self, ctx: click.Context, formatter: click.HelpFormatter) -> None:
+        """Render standard help plus optional example sections."""
+        self.format_usage(ctx, formatter)
+        self.format_help_text(ctx, formatter)
+        self.format_options(ctx, formatter)
+        self._format_examples(formatter)
+        self._format_see_also(formatter)
+        self.format_epilog(ctx, formatter)
+
+    def _format_examples(self, formatter: click.HelpFormatter) -> None:
+        """Append a section of task-oriented examples."""
+        if not self.examples:
+            return
+        formatter.write_paragraph()
+        with formatter.section("Examples"):
+            for index, example in enumerate(self.examples):
+                formatter.write_text(example)
+                if index < len(self.examples) - 1:
+                    formatter.write_paragraph()
+
+    def _format_see_also(self, formatter: click.HelpFormatter) -> None:
+        """Append related commands when provided."""
+        if not self.see_also:
+            return
+        formatter.write_paragraph()
+        with formatter.section("See Also"):
+            for related in self.see_also:
+                formatter.write_text(related)
+
+
 def _show_llm_guide(ctx: click.Context, _param: click.Parameter, value: bool) -> None:
     """Print the LLM-oriented operating guide and exit."""
     if not value or ctx.resilient_parsing:
@@ -446,14 +535,33 @@ def config():
 @config.command("show")
 def config_show():
     """Show current configuration."""
-    cfg = load_config()
-    path = get_config_path()
-    click.echo(f"Config file: {path}")
-    if cfg.get("api_key"):
-        masked = cfg["api_key"][:8] + "..." + cfg["api_key"][-4:]
+    auth_state = resolve_auth_state()
+    click.echo(f"Config file: {auth_state.config_path}")
+    click.echo(f"Auth source: {auth_state.source}")
+    click.echo(f"Preferred local storage: {auth_state.preferred_storage}")
+    if auth_state.api_key:
+        masked = auth_state.api_key[:8] + "..." + auth_state.api_key[-4:]
         click.echo(f"API key: {masked}")
     else:
         click.echo("API key: (not set)")
+
+
+def _save_api_key_and_echo(api_key: str) -> None:
+    """Persist an API key and explain where it was saved."""
+    storage = set_api_key(api_key)
+    if storage == AUTH_SOURCE_CONFIG:
+        click.echo("API key saved to config file because system keychain storage is unavailable.")
+        return
+    click.echo("API key saved to system keychain.")
+
+
+@config.command("login")
+@click.argument("api_key", required=False)
+def config_login(api_key: str | None):
+    """Save an API key for local CLI usage."""
+    if not api_key:
+        api_key = click.prompt("Attio API key", hide_input=True)
+    _save_api_key_and_echo(api_key)
 
 
 @config.command("set")
@@ -462,10 +570,25 @@ def config_show():
 def config_set(key: str, value: str):
     """Set a configuration value."""
     if key == "api-key":
-        set_api_key(value)
-        click.echo("API key saved.")
+        _save_api_key_and_echo(value)
     else:
         raise click.ClickException(f"Unknown config key: {key}")
+
+
+@config.command("logout")
+def config_logout():
+    """Remove locally saved API credentials."""
+    removed_sources = delete_api_key()
+    if not removed_sources:
+        click.echo("No saved API key found.")
+    elif len(removed_sources) == 1:
+        click.echo(f"Removed saved API key from {removed_sources[0]}.")
+    else:
+        joined = " and ".join(removed_sources)
+        click.echo(f"Removed saved API key from {joined}.")
+
+    if resolve_auth_state().source == AUTH_SOURCE_ENV:
+        click.echo("ATTIO_API_KEY is still set in the environment and will continue to be used.")
 
 
 # ============== Whoami Command ==============
@@ -579,7 +702,7 @@ def records_retrieve(object: str, record_id: str, as_json: bool):
         output_one(response["data"], RECORD_COLUMNS, as_json)
 
 
-@records.command("create")
+@records.command("create", cls=AttioCommand, examples=RECORDS_CREATE_EXAMPLES)
 @click.argument("object")
 @click.argument("data", required=False)
 @click.option("--data", "data_json", help="Record values as JSON")
@@ -598,7 +721,7 @@ def records_create(object: str, data: str, data_json: str, data_file: str, as_js
         output_one(response["data"], RECORD_COLUMNS, as_json)
 
 
-@records.command("update")
+@records.command("update", cls=AttioCommand, examples=RECORDS_UPDATE_EXAMPLES)
 @click.argument("object")
 @click.argument("record_id")
 @click.argument("data", required=False)
@@ -818,7 +941,7 @@ def entries_retrieve(list_id: str, entry_id: str, as_json: bool):
         output_one(response["data"], ENTRY_COLUMNS, as_json)
 
 
-@entries.command("create")
+@entries.command("create", cls=AttioCommand, examples=ENTRIES_CREATE_EXAMPLES)
 @click.argument("list_id")
 @click.option("--record-id", required=True, help="Record ID to add")
 @click.argument("data", required=False)
@@ -851,7 +974,7 @@ def entries_create(
         output_one(response["data"], ENTRY_COLUMNS, as_json)
 
 
-@entries.command("update")
+@entries.command("update", cls=AttioCommand, examples=ENTRIES_UPDATE_EXAMPLES)
 @click.argument("list_id")
 @click.argument("entry_id")
 @click.argument("data", required=False)
@@ -955,7 +1078,7 @@ def tasks_retrieve(task_id: str, as_json: bool):
         output_one(response["data"], TASK_COLUMNS, as_json)
 
 
-@tasks.command("create")
+@tasks.command("create", cls=AttioCommand, examples=TASKS_CREATE_EXAMPLES)
 @click.argument("content")
 @click.option("--deadline", help="Deadline (ISO 8601 format)")
 @click.option("--assignees", help="Assignees as JSON array")
@@ -1135,7 +1258,7 @@ def attributes_retrieve(identifier: str, attribute: str, target: str, as_json: b
         output_one(response["data"], ATTRIBUTE_COLUMNS, as_json)
 
 
-@attributes.command("create")
+@attributes.command("create", cls=AttioCommand, examples=ATTRIBUTES_CREATE_EXAMPLES)
 @click.argument("identifier")
 @click.argument("data", required=False)
 @click.option("--data", "data_json", help="Attribute payload as JSON")
@@ -1187,7 +1310,7 @@ def attributes_create(
         output_one(response["data"], ATTRIBUTE_COLUMNS, as_json)
 
 
-@attributes.command("update")
+@attributes.command("update", cls=AttioCommand, examples=ATTRIBUTES_UPDATE_EXAMPLES)
 @click.argument("identifier")
 @click.argument("attribute")
 @click.argument("data", required=False)
@@ -1387,7 +1510,7 @@ def attributes_statuses(
         output_many(response["data"], STATUS_COLUMNS, as_json)
 
 
-@attributes.command("add-status")
+@attributes.command("add-status", cls=AttioCommand, examples=ATTRIBUTES_ADD_STATUS_EXAMPLES)
 @click.argument("identifier")
 @click.argument("attribute")
 @click.argument("data", required=False)
@@ -1453,7 +1576,11 @@ def attributes_add_status(
         output_one(response["data"], STATUS_COLUMNS, as_json)
 
 
-@attributes.command("update-status")
+@attributes.command(
+    "update-status",
+    cls=AttioCommand,
+    examples=ATTRIBUTES_UPDATE_STATUS_EXAMPLES,
+)
 @click.argument("identifier")
 @click.argument("attribute")
 @click.argument("status_id")

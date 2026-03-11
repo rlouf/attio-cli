@@ -58,3 +58,28 @@ def test_root_llm_flag_prints_machine_guide():
     assert "Command inventory:" in result.output
     assert "records: list, retrieve, create, update, search, entries, values" in result.output
     assert "Delete operations are intentionally not implemented in this CLI." in result.output
+
+
+def test_examples_are_shown_for_annotated_command_help():
+    result = CliRunner().invoke(cli, ["records", "create", "--help"])
+
+    assert result.exit_code == 0
+    assert "Examples:" in result.output
+    assert "attio records create people --data" in result.output
+    assert "echo '{\"name\": \"Jane Doe\"" in result.output
+
+
+def test_examples_are_shown_for_complex_attribute_command_help():
+    result = CliRunner().invoke(cli, ["attributes", "update-status", "--help"])
+
+    assert result.exit_code == 0
+    assert "Examples:" in result.output
+    assert "attio attributes update-status <list-id> stage <status-id>" in result.output
+    assert "--target-time-in-status-file target-time.json" in result.output
+
+
+def test_non_annotated_help_does_not_show_examples_section():
+    result = CliRunner().invoke(cli, ["records", "retrieve", "--help"])
+
+    assert result.exit_code == 0
+    assert "Examples:" not in result.output

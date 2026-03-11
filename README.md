@@ -16,11 +16,17 @@ Set your API key via environment variable (recommended):
 export ATTIO_API_KEY="your-api-key"
 ```
 
-Or save it to the config file:
+Or save it for local CLI use:
 
 ```bash
-attio config set api-key "your-api-key"
+attio config login
+# or
+attio config login "your-api-key"
 ```
+
+Saved credentials prefer the system keychain when available and fall back to the config file otherwise.
+Use `attio config show` to see the active auth source and preferred local storage backend.
+`attio config set api-key "your-api-key"` remains supported for backward compatibility.
 
 ## Usage
 
