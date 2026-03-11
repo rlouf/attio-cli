@@ -528,6 +528,40 @@ def entries_update(list_id: str, entry_id: str, data: str, overwrite: bool, as_j
         output_one(response["data"], ENTRY_COLUMNS, as_json)
 
 
+@entries.command("values")
+@click.argument("list_id")
+@click.argument("entry_id")
+@click.argument("attribute")
+@click.option("--show-historic", is_flag=True, help="Include historic values")
+@click.option("--limit", type=int, help="Maximum number of values")
+@click.option("--offset", type=int, help="Number of values to skip")
+@click.option("--json", "as_json", is_flag=True, help="Output as JSONL")
+def entries_values(
+    list_id: str,
+    entry_id: str,
+    attribute: str,
+    show_historic: bool,
+    limit: int,
+    offset: int,
+    as_json: bool,
+):
+    """List values for a list entry attribute."""
+    params = {}
+    if show_historic:
+        params["show_historic"] = "true"
+    if limit:
+        params["limit"] = limit
+    if offset:
+        params["offset"] = offset
+
+    with get_client() as client:
+        response = client.get(
+            f"/lists/{list_id}/entries/{entry_id}/attributes/{attribute}/values",
+            params=params,
+        )
+        output_many(response["data"], ATTRIBUTE_VALUE_COLUMNS, as_json)
+
+
 # ============== Tasks Commands ==============
 
 
