@@ -1,8 +1,8 @@
 import os
 from unittest.mock import patch
 
-from attio_cli import config
-from attio_cli.main import cli
+from attio import config
+from attio.main import cli
 
 
 def test_resolve_auth_state_prefers_environment(tmp_path, fake_keyring_factory):
@@ -16,7 +16,7 @@ def test_resolve_auth_state_prefers_environment(tmp_path, fake_keyring_factory):
         {"XDG_CONFIG_HOME": str(cfg_home), "ATTIO_API_KEY": "env-key"},
         clear=True,
     ):
-        with patch("attio_cli.config.keyring", fake_keyring):
+        with patch("attio.config.keyring", fake_keyring):
             config.save_config({"api_key": "file-key"})
             auth_state = config.resolve_auth_state()
 
@@ -30,7 +30,7 @@ def test_set_api_key_prefers_keychain_and_clears_config_fallback(tmp_path, fake_
 
     with patch.dict(os.environ, {"XDG_CONFIG_HOME": str(cfg_home)}, clear=True):
         config.save_config({"api_key": "old-file-key"})
-        with patch("attio_cli.config.keyring", fake_keyring):
+        with patch("attio.config.keyring", fake_keyring):
             storage = config.set_api_key("new-key")
 
         assert storage == config.AUTH_SOURCE_KEYCHAIN
@@ -44,7 +44,7 @@ def test_set_api_key_falls_back_to_config_when_keychain_unavailable(tmp_path):
     cfg_home = tmp_path / "xdg"
 
     with patch.dict(os.environ, {"XDG_CONFIG_HOME": str(cfg_home)}, clear=True):
-        with patch("attio_cli.config.keyring", None):
+        with patch("attio.config.keyring", None):
             storage = config.set_api_key("file-key")
 
         assert storage == config.AUTH_SOURCE_CONFIG
@@ -58,7 +58,7 @@ def test_config_show_reports_auth_source_and_storage(tmp_path, fake_keyring_fact
     )
 
     with patch.dict(os.environ, {"XDG_CONFIG_HOME": str(cfg_home)}, clear=True):
-        with patch("attio_cli.config.keyring", fake_keyring):
+        with patch("attio.config.keyring", fake_keyring):
             result = runner.invoke(cli, ["config", "show"])
 
     assert result.exit_code == 0
@@ -72,7 +72,7 @@ def test_config_login_saves_to_keychain(tmp_path, fake_keyring_factory, runner):
     fake_keyring = fake_keyring_factory()
 
     with patch.dict(os.environ, {"XDG_CONFIG_HOME": str(cfg_home)}, clear=True):
-        with patch("attio_cli.config.keyring", fake_keyring):
+        with patch("attio.config.keyring", fake_keyring):
             result = runner.invoke(cli, ["config", "login", "secret-key"])
 
     assert result.exit_code == 0
@@ -97,7 +97,7 @@ def test_config_logout_removes_saved_key_and_mentions_environment_override(
         {"XDG_CONFIG_HOME": str(cfg_home), "ATTIO_API_KEY": "env-key"},
         clear=True,
     ):
-        with patch("attio_cli.config.keyring", fake_keyring):
+        with patch("attio.config.keyring", fake_keyring):
             result = runner.invoke(cli, ["config", "logout"])
 
     assert result.exit_code == 0

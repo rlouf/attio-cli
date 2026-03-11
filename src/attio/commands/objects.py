@@ -2,9 +2,9 @@
 
 import click
 
-from attio_cli.columns import OBJECT_COLUMNS
-from attio_cli.commands.common import get_client
-from attio_cli.output import output_many, output_one
+from attio.columns import OBJECT_COLUMNS
+from attio.commands.common import get_client
+from attio.output import output_many, output_one
 
 
 @click.group()

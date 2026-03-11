@@ -1,4 +1,4 @@
-from attio_cli.main import cli
+from attio.main import cli
 
 
 def test_lists_update_reads_data_file(runner, recording_client_factory, patch_command_clients):

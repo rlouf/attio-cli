@@ -3,7 +3,7 @@ requires = ["setuptools>=61.0", "setuptools-scm>=8.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "attio-cli"
+name = "attio"
 dynamic = ["version"]
 description = "CLI for interacting with Attio CRM API"
 readme = "README.md"
@@ -29,17 +29,17 @@ dependencies = [
 ]
 
 [project.scripts]
-attio = "attio_cli.main:cli"
+attio = "attio.main:cli"
 
 [project.urls]
-Homepage = "https://github.com/yourusername/attio-cli"
-Issues = "https://github.com/yourusername/attio-cli/issues"
+Homepage = "https://github.com/yourusername/attio"
+Issues = "https://github.com/yourusername/attio/issues"
 
 [tool.setuptools.packages.find]
 where = ["src"]
 
 [tool.setuptools_scm]
-version_file = "src/attio_cli/_version.py"
+version_file = "src/attio/_version.py"
 
 [tool.ruff]
 target-version = "py39"

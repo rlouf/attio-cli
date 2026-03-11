@@ -2,10 +2,10 @@
 
 import click
 
-from attio_cli.cli_core import TASKS_CREATE_EXAMPLES, AttioCommand
-from attio_cli.columns import TASK_COLUMNS
-from attio_cli.commands.common import get_client
-from attio_cli.output import get_json_input, output_many, output_one
+from attio.cli_core import TASKS_CREATE_EXAMPLES, AttioCommand
+from attio.columns import TASK_COLUMNS
+from attio.commands.common import get_client
+from attio.output import get_json_input, output_many, output_one
 
 
 @click.group()

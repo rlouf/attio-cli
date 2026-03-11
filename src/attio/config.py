@@ -12,7 +12,7 @@ keyring: Any = (
     importlib.import_module("keyring") if importlib.util.find_spec("keyring") is not None else None
 )
 
-KEYRING_SERVICE = "attio-cli"
+KEYRING_SERVICE = "attio"
 KEYRING_USERNAME = "default"
 AUTH_SOURCE_ENV = "environment variable"
 AUTH_SOURCE_KEYCHAIN = "system keychain"
@@ -77,7 +77,7 @@ def is_keyring_available() -> bool:
     if keyring is None:
         return False
     try:
-        keyring.get_password(KEYRING_SERVICE, "__attio_cli_probe__")
+        keyring.get_password(KEYRING_SERVICE, "__attio_probe__")
     except Exception:
         return False
     return True

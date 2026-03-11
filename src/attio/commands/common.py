@@ -2,8 +2,8 @@
 
 import click
 
-from attio_cli.client import AUTH_SETUP_HINT, AttioClient
-from attio_cli.config import get_api_key
+from attio.client import AUTH_SETUP_HINT, AttioClient
+from attio.config import get_api_key
 
 
 def get_client() -> AttioClient:

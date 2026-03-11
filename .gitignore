@@ -24,7 +24,7 @@ ENV/
 htmlcov/
 
 # Generated version file
-src/attio_cli/_version.py
+src/attio/_version.py
 
 # uv lockfile
 uv.lock

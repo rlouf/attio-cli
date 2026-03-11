@@ -10,16 +10,16 @@ import pytest
 from click.testing import CliRunner
 
 CLIENT_MODULE_NAMES = [
-    "attio_cli.main",
-    "attio_cli.commands.attributes",
-    "attio_cli.commands.entries",
-    "attio_cli.commands.lists",
-    "attio_cli.commands.members",
-    "attio_cli.commands.notes",
-    "attio_cli.commands.objects",
-    "attio_cli.commands.records",
-    "attio_cli.commands.tasks",
-    "attio_cli.commands.webhooks",
+    "attio.main",
+    "attio.commands.attributes",
+    "attio.commands.entries",
+    "attio.commands.lists",
+    "attio.commands.members",
+    "attio.commands.notes",
+    "attio.commands.objects",
+    "attio.commands.records",
+    "attio.commands.tasks",
+    "attio.commands.webhooks",
 ]
 
 

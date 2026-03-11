@@ -1,6 +1,6 @@
 ---
 name: managing-attio-crm
-description: Manages Attio CRM data via the attio-cli command-line tool. Use when the user wants to work with CRM records (people, companies), lists, entries, tasks, notes, or workspace settings. Supports listing, creating, updating, and searching CRM data.
+description: Manages Attio CRM data via the attio command-line tool. Use when the user wants to work with CRM records (people, companies), lists, entries, tasks, notes, or workspace settings. Supports listing, creating, updating, and searching CRM data.
 ---
 
 # Attio CLI

@@ -1,11 +1,11 @@
 from unittest.mock import patch
 
-from attio_cli.client import AUTH_SETUP_HINT, AttioError
-from attio_cli.main import cli
+from attio.client import AUTH_SETUP_HINT, AttioError
+from attio.main import cli
 
 
 def test_missing_api_key_is_actionable(runner):
-    with patch("attio_cli.main.get_api_key", return_value=None):
+    with patch("attio.main.get_api_key", return_value=None):
         result = runner.invoke(cli, ["whoami"])
 
     assert result.exit_code == 1
@@ -20,7 +20,7 @@ def test_unauthorized_api_error_includes_auth_hint(runner, failing_client_factor
         hint=AUTH_SETUP_HINT,
     )
 
-    with patch("attio_cli.main.get_client", return_value=failing_client_factory(error)):
+    with patch("attio.main.get_client", return_value=failing_client_factory(error)):
         result = runner.invoke(cli, ["whoami"])
 
     assert result.exit_code == 1
@@ -37,7 +37,7 @@ def test_not_found_api_error_is_normalized(runner, failing_client_factory):
         hint="Check the resource identifier and try again.",
     )
 
-    with patch("attio_cli.main.get_client", return_value=failing_client_factory(error)):
+    with patch("attio.main.get_client", return_value=failing_client_factory(error)):
         result = runner.invoke(cli, ["whoami"])
 
     assert result.exit_code == 1
@@ -53,7 +53,7 @@ def test_network_error_is_normalized(runner, failing_client_factory):
         hint="Check your network connection and try again.",
     )
 
-    with patch("attio_cli.main.get_client", return_value=failing_client_factory(error)):
+    with patch("attio.main.get_client", return_value=failing_client_factory(error)):
         result = runner.invoke(cli, ["whoami"])
 
     assert result.exit_code == 1

@@ -1,6 +1,6 @@
 """Shared table column definitions and value formatters."""
 
-from attio_cli.output import ColumnSpec, Row
+from attio.output import ColumnSpec, Row
 
 
 def extract_name(values: Row) -> str:

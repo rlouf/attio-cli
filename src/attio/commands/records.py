@@ -4,15 +4,15 @@ from typing import Any
 
 import click
 
-from attio_cli.cli_core import RECORDS_CREATE_EXAMPLES, RECORDS_UPDATE_EXAMPLES, AttioCommand
-from attio_cli.columns import (
+from attio.cli_core import RECORDS_CREATE_EXAMPLES, RECORDS_UPDATE_EXAMPLES, AttioCommand
+from attio.columns import (
     ATTRIBUTE_VALUE_COLUMNS,
     RECORD_COLUMNS,
     RECORD_ENTRY_COLUMNS,
     SEARCH_COLUMNS,
 )
-from attio_cli.commands.common import get_client
-from attio_cli.output import get_json_input, output_many, output_one
+from attio.commands.common import get_client
+from attio.output import get_json_input, output_many, output_one
 
 
 @click.group()

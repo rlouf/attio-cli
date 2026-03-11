@@ -1,6 +1,6 @@
 from unittest.mock import patch
 
-from attio_cli.main import cli
+from attio.main import cli
 
 
 def test_root_help_supports_short_flag(runner):
@@ -36,7 +36,7 @@ def test_root_help_hides_banner_for_non_tty(runner):
 
 
 def test_root_help_shows_banner_for_tty(runner):
-    with patch("attio_cli.cli_core.should_show_banner", return_value=True):
+    with patch("attio.cli_core.should_show_banner", return_value=True):
         result = runner.invoke(cli, ["--help"], color=False)
 
     assert result.exit_code == 0

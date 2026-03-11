@@ -1,4 +1,4 @@
-from attio_cli.main import cli
+from attio.main import cli
 
 
 def test_attributes_list_defaults_to_object_target(

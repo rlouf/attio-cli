@@ -1,7 +1,7 @@
 import click
 import pytest
 
-from attio_cli import output
+from attio import output
 
 
 def test_get_json_input_uses_data_flag():

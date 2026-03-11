@@ -4,7 +4,7 @@ import os
 
 import click
 
-from attio_cli.client import AttioError
+from attio.client import AttioError
 
 BANNER_LINES = [
     "               @@@@@@@@@.",

@@ -1,6 +1,6 @@
 .PHONY: test lint format-check typecheck check verify
 
-UV_CACHE_DIR ?= /tmp/attio-cli-uv-cache
+UV_CACHE_DIR ?= /tmp/attio-uv-cache
 
 test:
 	UV_CACHE_DIR=$(UV_CACHE_DIR) uv run --with pytest pytest -q tests

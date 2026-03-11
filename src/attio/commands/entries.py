@@ -2,10 +2,10 @@
 
 import click
 
-from attio_cli.cli_core import ENTRIES_CREATE_EXAMPLES, ENTRIES_UPDATE_EXAMPLES, AttioCommand
-from attio_cli.columns import ATTRIBUTE_VALUE_COLUMNS, ENTRY_COLUMNS
-from attio_cli.commands.common import get_client
-from attio_cli.output import get_json_input, output_many, output_one
+from attio.cli_core import ENTRIES_CREATE_EXAMPLES, ENTRIES_UPDATE_EXAMPLES, AttioCommand
+from attio.columns import ATTRIBUTE_VALUE_COLUMNS, ENTRY_COLUMNS
+from attio.commands.common import get_client
+from attio.output import get_json_input, output_many, output_one
 
 
 @click.group()

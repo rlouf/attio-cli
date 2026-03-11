@@ -1,4 +1,4 @@
-from attio_cli.main import cli
+from attio.main import cli
 
 
 def test_records_create_uses_data_flag(runner, recording_client_factory, patch_command_clients):

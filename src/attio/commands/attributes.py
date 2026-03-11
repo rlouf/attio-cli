@@ -2,16 +2,16 @@
 
 import click
 
-from attio_cli.cli_core import (
+from attio.cli_core import (
     ATTRIBUTES_ADD_STATUS_EXAMPLES,
     ATTRIBUTES_CREATE_EXAMPLES,
     ATTRIBUTES_UPDATE_EXAMPLES,
     ATTRIBUTES_UPDATE_STATUS_EXAMPLES,
     AttioCommand,
 )
-from attio_cli.columns import ATTRIBUTE_COLUMNS, OPTION_COLUMNS, STATUS_COLUMNS
-from attio_cli.commands.common import attribute_path, get_client
-from attio_cli.output import get_json_input, output_many, output_one
+from attio.columns import ATTRIBUTE_COLUMNS, OPTION_COLUMNS, STATUS_COLUMNS
+from attio.commands.common import attribute_path, get_client
+from attio.output import get_json_input, output_many, output_one
 
 
 @click.group()

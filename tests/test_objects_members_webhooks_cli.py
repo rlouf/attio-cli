@@ -1,4 +1,4 @@
-from attio_cli.main import cli
+from attio.main import cli
 
 
 def test_objects_list_hits_objects_endpoint(

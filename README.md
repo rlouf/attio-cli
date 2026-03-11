@@ -1,11 +1,12 @@
 # Attio CLI
 
 A command-line interface for interacting with the [Attio CRM API](https://developers.attio.com/).
+The Python package name is `attio`.
 
 ## Installation
 
 ```bash
-pip install attio-cli
+pip install attio
 ```
 
 ## Configuration

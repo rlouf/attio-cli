@@ -2,7 +2,7 @@
 
 import click
 
-from attio_cli.config import (
+from attio.config import (
     AUTH_SOURCE_CONFIG,
     AUTH_SOURCE_ENV,
     delete_api_key,

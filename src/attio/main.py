@@ -2,22 +2,22 @@
 
 import click
 
-from attio_cli import __version__
-from attio_cli.cli_core import CLI_CONTEXT_SETTINGS, AttioGroup, show_llm_guide
-from attio_cli.client import AUTH_SETUP_HINT, AttioClient
-from attio_cli.columns import IDENTITY_COLUMNS
-from attio_cli.commands.attributes import attributes
-from attio_cli.commands.config import config
-from attio_cli.commands.entries import entries
-from attio_cli.commands.lists import lists
-from attio_cli.commands.members import members
-from attio_cli.commands.notes import notes
-from attio_cli.commands.objects import objects
-from attio_cli.commands.records import records
-from attio_cli.commands.tasks import tasks
-from attio_cli.commands.webhooks import webhooks
-from attio_cli.config import get_api_key
-from attio_cli.output import output_one
+from attio import __version__
+from attio.cli_core import CLI_CONTEXT_SETTINGS, AttioGroup, show_llm_guide
+from attio.client import AUTH_SETUP_HINT, AttioClient
+from attio.columns import IDENTITY_COLUMNS
+from attio.commands.attributes import attributes
+from attio.commands.config import config
+from attio.commands.entries import entries
+from attio.commands.lists import lists
+from attio.commands.members import members
+from attio.commands.notes import notes
+from attio.commands.objects import objects
+from attio.commands.records import records
+from attio.commands.tasks import tasks
+from attio.commands.webhooks import webhooks
+from attio.config import get_api_key
+from attio.output import output_one
 
 
 def get_client() -> AttioClient:

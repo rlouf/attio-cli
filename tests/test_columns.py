@@ -1,4 +1,4 @@
-from attio_cli.columns import extract_name, summarize_value, truncate
+from attio.columns import extract_name, summarize_value, truncate
 
 
 def test_extract_name_prefers_simple_name_field():

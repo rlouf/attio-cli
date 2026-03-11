@@ -1,4 +1,4 @@
-from attio_cli.main import cli
+from attio.main import cli
 
 
 def test_tasks_list_sends_limit_and_offset(
