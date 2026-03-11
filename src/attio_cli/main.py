@@ -5,7 +5,13 @@ import click
 from attio_cli import __version__
 from attio_cli.client import AttioClient
 from attio_cli.config import get_api_key, get_config_path, load_config, set_api_key
-from attio_cli.output import get_json_input, output_many, output_one
+from attio_cli.output import (
+    get_json_input,
+    is_stdin_piped,
+    output_many,
+    output_one,
+    read_stdin,
+)
 
 
 def get_client() -> AttioClient:
@@ -163,6 +169,44 @@ def _summarize_value(item: dict) -> str:
     }
     value = {k: v for k, v in item.items() if k not in metadata_keys}
     return _truncate(str(value), 60) if value else "-"
+
+
+def _get_optional_json_input(data: str | None) -> dict | None:
+    """Get optional JSON input from an argument or stdin."""
+    import json as json_mod
+
+    if data:
+        input_str = data
+    elif is_stdin_piped():
+        input_str = read_stdin().strip()
+        if not input_str:
+            return None
+    else:
+        return None
+
+    try:
+        return json_mod.loads(input_str)
+    except json_mod.JSONDecodeError as e:
+        raise click.ClickException(f"Invalid JSON: {e}") from None
+
+
+def _parse_json_option(value: str | None, option_name: str) -> dict | list | None:
+    """Parse an optional JSON option."""
+    import json as json_mod
+
+    if value is None:
+        return None
+
+    try:
+        return json_mod.loads(value)
+    except json_mod.JSONDecodeError as e:
+        raise click.ClickException(f"Invalid JSON for {option_name}: {e}") from None
+
+
+def _attribute_path(target: str, identifier: str, suffix: str = "") -> str:
+    """Build an attributes API path for objects or lists."""
+    base = f"/{target}/{identifier}/attributes"
+    return f"{base}{suffix}"
 
 
 @click.group()
@@ -714,157 +758,355 @@ def notes_create(
 
 @cli.group()
 def attributes():
-    """Manage object attributes."""
+    """Manage attributes for objects and lists."""
     pass
 
 
 @attributes.command("list")
-@click.argument("object")
+@click.argument("identifier")
+@click.option(
+    "--target",
+    type=click.Choice(["objects", "lists"]),
+    default="objects",
+    show_default=True,
+    help="Attribute owner type",
+)
 @click.option("--json", "as_json", is_flag=True, help="Output as JSONL")
-def attributes_list(object: str, as_json: bool):
-    """List attributes for an object."""
+def attributes_list(identifier: str, target: str, as_json: bool):
+    """List attributes for an object or list."""
     with get_client() as client:
-        response = client.get(f"/objects/{object}/attributes")
+        response = client.get(_attribute_path(target, identifier))
         output_many(response["data"], ATTRIBUTE_COLUMNS, as_json)
 
 
 @attributes.command("retrieve")
-@click.argument("object")
+@click.argument("identifier")
 @click.argument("attribute")
+@click.option(
+    "--target",
+    type=click.Choice(["objects", "lists"]),
+    default="objects",
+    show_default=True,
+    help="Attribute owner type",
+)
 @click.option("--json", "as_json", is_flag=True, help="Output as JSON")
-def attributes_retrieve(object: str, attribute: str, as_json: bool):
+def attributes_retrieve(identifier: str, attribute: str, target: str, as_json: bool):
     """Retrieve attribute details."""
     with get_client() as client:
-        response = client.get(f"/objects/{object}/attributes/{attribute}")
+        response = client.get(_attribute_path(target, identifier, f"/{attribute}"))
         output_one(response["data"], ATTRIBUTE_COLUMNS, as_json)
 
 
 @attributes.command("create")
-@click.argument("object")
-@click.option("--title", required=True, help="Attribute title")
-@click.option("--type", "attr_type", required=True, help="Attribute type")
+@click.argument("identifier")
+@click.argument("data", required=False)
+@click.option(
+    "--target",
+    type=click.Choice(["objects", "lists"]),
+    default="objects",
+    show_default=True,
+    help="Attribute owner type",
+)
+@click.option("--title", help="Attribute title")
+@click.option("--type", "attr_type", help="Attribute type")
+@click.option("--slug", help="Attribute API slug")
 @click.option("--json", "as_json", is_flag=True, help="Output as JSON")
-def attributes_create(object: str, title: str, attr_type: str, as_json: bool):
+def attributes_create(
+    identifier: str,
+    data: str,
+    target: str,
+    title: str,
+    attr_type: str,
+    slug: str,
+    as_json: bool,
+):
     """Create a new attribute."""
+    payload = _get_optional_json_input(data) or {}
+    if title is not None:
+        payload["title"] = title
+    if attr_type is not None:
+        payload["type"] = attr_type
+    if slug is not None:
+        payload["api_slug"] = slug
+    if not payload:
+        raise click.ClickException("Provide attribute JSON or at least one attribute field.")
+
     with get_client() as client:
         response = client.post(
-            f"/objects/{object}/attributes",
-            {"data": {"title": title, "type": attr_type}},
+            _attribute_path(target, identifier),
+            {"data": payload},
         )
         output_one(response["data"], ATTRIBUTE_COLUMNS, as_json)
 
 
 @attributes.command("update")
-@click.argument("object")
+@click.argument("identifier")
 @click.argument("attribute")
+@click.argument("data", required=False)
+@click.option(
+    "--target",
+    type=click.Choice(["objects", "lists"]),
+    default="objects",
+    show_default=True,
+    help="Attribute owner type",
+)
 @click.option("--title", help="New title")
+@click.option("--slug", help="New API slug")
 @click.option("--json", "as_json", is_flag=True, help="Output as JSON")
-def attributes_update(object: str, attribute: str, title: str, as_json: bool):
+def attributes_update(
+    identifier: str,
+    attribute: str,
+    data: str,
+    target: str,
+    title: str,
+    slug: str,
+    as_json: bool,
+):
     """Update an attribute."""
-    data = {}
+    payload = _get_optional_json_input(data) or {}
     if title:
-        data["title"] = title
+        payload["title"] = title
+    if slug:
+        payload["api_slug"] = slug
+    if not payload:
+        raise click.ClickException("Provide update JSON or at least one field to change.")
 
     with get_client() as client:
         response = client.patch(
-            f"/objects/{object}/attributes/{attribute}",
-            {"data": data},
+            _attribute_path(target, identifier, f"/{attribute}"),
+            {"data": payload},
         )
         output_one(response["data"], ATTRIBUTE_COLUMNS, as_json)
 
 
 @attributes.command("options")
-@click.argument("object")
+@click.argument("identifier")
 @click.argument("attribute")
+@click.option(
+    "--target",
+    type=click.Choice(["objects", "lists"]),
+    default="objects",
+    show_default=True,
+    help="Attribute owner type",
+)
+@click.option("--show-archived", is_flag=True, help="Include archived options")
 @click.option("--json", "as_json", is_flag=True, help="Output as JSONL")
-def attributes_options(object: str, attribute: str, as_json: bool):
+def attributes_options(identifier: str, attribute: str, target: str, show_archived: bool, as_json: bool):
     """List select options for an attribute."""
+    params = {"show_archived": "true"} if show_archived else None
     with get_client() as client:
-        response = client.get(f"/objects/{object}/attributes/{attribute}/options")
+        response = client.get(
+            _attribute_path(target, identifier, f"/{attribute}/options"),
+            params=params,
+        )
         output_many(response["data"], OPTION_COLUMNS, as_json)
 
 
 @attributes.command("add-option")
-@click.argument("object")
+@click.argument("identifier")
 @click.argument("attribute")
-@click.option("--title", required=True, help="Option title")
+@click.argument("data", required=False)
+@click.option(
+    "--target",
+    type=click.Choice(["objects", "lists"]),
+    default="objects",
+    show_default=True,
+    help="Attribute owner type",
+)
+@click.option("--title", help="Option title")
 @click.option("--json", "as_json", is_flag=True, help="Output as JSON")
-def attributes_add_option(object: str, attribute: str, title: str, as_json: bool):
+def attributes_add_option(
+    identifier: str,
+    attribute: str,
+    data: str,
+    target: str,
+    title: str,
+    as_json: bool,
+):
     """Add a select option."""
+    payload = _get_optional_json_input(data) or {}
+    if title is not None:
+        payload["title"] = title
+    if not payload:
+        raise click.ClickException("Provide option JSON or at least --title.")
+
     with get_client() as client:
         response = client.post(
-            f"/objects/{object}/attributes/{attribute}/options",
-            {"data": {"title": title}},
+            _attribute_path(target, identifier, f"/{attribute}/options"),
+            {"data": payload},
         )
         output_one(response["data"], OPTION_COLUMNS, as_json)
 
 
 @attributes.command("update-option")
-@click.argument("object")
+@click.argument("identifier")
 @click.argument("attribute")
 @click.argument("option_id")
+@click.argument("data", required=False)
+@click.option(
+    "--target",
+    type=click.Choice(["objects", "lists"]),
+    default="objects",
+    show_default=True,
+    help="Attribute owner type",
+)
 @click.option("--title", help="New title")
+@click.option("--archived", type=bool, help="Whether the option is archived")
 @click.option("--json", "as_json", is_flag=True, help="Output as JSON")
 def attributes_update_option(
-    object: str, attribute: str, option_id: str, title: str, as_json: bool
+    identifier: str,
+    attribute: str,
+    option_id: str,
+    data: str,
+    target: str,
+    title: str,
+    archived: bool,
+    as_json: bool,
 ):
     """Update a select option."""
-    data = {}
+    payload = _get_optional_json_input(data) or {}
     if title:
-        data["title"] = title
+        payload["title"] = title
+    if archived is not None:
+        payload["is_archived"] = archived
+    if not payload:
+        raise click.ClickException("Provide update JSON or at least one field to change.")
 
     with get_client() as client:
         response = client.patch(
-            f"/objects/{object}/attributes/{attribute}/options/{option_id}",
-            {"data": data},
+            _attribute_path(target, identifier, f"/{attribute}/options/{option_id}"),
+            {"data": payload},
         )
         output_one(response["data"], OPTION_COLUMNS, as_json)
 
 
 @attributes.command("statuses")
-@click.argument("object")
+@click.argument("identifier")
 @click.argument("attribute")
+@click.option(
+    "--target",
+    type=click.Choice(["objects", "lists"]),
+    default="objects",
+    show_default=True,
+    help="Attribute owner type",
+)
+@click.option("--show-archived", is_flag=True, help="Include archived statuses")
 @click.option("--json", "as_json", is_flag=True, help="Output as JSONL")
-def attributes_statuses(object: str, attribute: str, as_json: bool):
+def attributes_statuses(
+    identifier: str,
+    attribute: str,
+    target: str,
+    show_archived: bool,
+    as_json: bool,
+):
     """List status options for an attribute."""
+    params = {"show_archived": "true"} if show_archived else None
     with get_client() as client:
-        response = client.get(f"/objects/{object}/attributes/{attribute}/statuses")
+        response = client.get(
+            _attribute_path(target, identifier, f"/{attribute}/statuses"),
+            params=params,
+        )
         output_many(response["data"], STATUS_COLUMNS, as_json)
 
 
 @attributes.command("add-status")
-@click.argument("object")
+@click.argument("identifier")
 @click.argument("attribute")
-@click.option("--title", required=True, help="Status title")
+@click.argument("data", required=False)
+@click.option(
+    "--target",
+    type=click.Choice(["objects", "lists"]),
+    default="objects",
+    show_default=True,
+    help="Attribute owner type",
+)
+@click.option("--title", help="Status title")
+@click.option("--celebration-enabled", type=bool, help="Whether celebration is enabled")
+@click.option("--target-time-in-status", help="Target time in status as JSON")
 @click.option("--json", "as_json", is_flag=True, help="Output as JSON")
-def attributes_add_status(object: str, attribute: str, title: str, as_json: bool):
+def attributes_add_status(
+    identifier: str,
+    attribute: str,
+    data: str,
+    target: str,
+    title: str,
+    celebration_enabled: bool,
+    target_time_in_status: str,
+    as_json: bool,
+):
     """Add a status option."""
+    payload = _get_optional_json_input(data) or {}
+    if title is not None:
+        payload["title"] = title
+    if celebration_enabled is not None:
+        payload["celebration_enabled"] = celebration_enabled
+    target_time_payload = _parse_json_option(
+        target_time_in_status,
+        "--target-time-in-status",
+    )
+    if target_time_payload is not None:
+        payload["target_time_in_status"] = target_time_payload
+    if not payload:
+        raise click.ClickException("Provide status JSON or at least one field.")
+
     with get_client() as client:
         response = client.post(
-            f"/objects/{object}/attributes/{attribute}/statuses",
-            {"data": {"title": title}},
+            _attribute_path(target, identifier, f"/{attribute}/statuses"),
+            {"data": payload},
         )
         output_one(response["data"], STATUS_COLUMNS, as_json)
 
 
 @attributes.command("update-status")
-@click.argument("object")
+@click.argument("identifier")
 @click.argument("attribute")
 @click.argument("status_id")
+@click.argument("data", required=False)
+@click.option(
+    "--target",
+    type=click.Choice(["objects", "lists"]),
+    default="objects",
+    show_default=True,
+    help="Attribute owner type",
+)
 @click.option("--title", help="New title")
+@click.option("--archived", type=bool, help="Whether the status is archived")
+@click.option("--celebration-enabled", type=bool, help="Whether celebration is enabled")
+@click.option("--target-time-in-status", help="Target time in status as JSON")
 @click.option("--json", "as_json", is_flag=True, help="Output as JSON")
 def attributes_update_status(
-    object: str, attribute: str, status_id: str, title: str, as_json: bool
+    identifier: str,
+    attribute: str,
+    status_id: str,
+    data: str,
+    target: str,
+    title: str,
+    archived: bool,
+    celebration_enabled: bool,
+    target_time_in_status: str,
+    as_json: bool,
 ):
     """Update a status option."""
-    data = {}
+    payload = _get_optional_json_input(data) or {}
     if title:
-        data["title"] = title
+        payload["title"] = title
+    if archived is not None:
+        payload["is_archived"] = archived
+    if celebration_enabled is not None:
+        payload["celebration_enabled"] = celebration_enabled
+    target_time_payload = _parse_json_option(
+        target_time_in_status,
+        "--target-time-in-status",
+    )
+    if target_time_payload is not None:
+        payload["target_time_in_status"] = target_time_payload
+    if not payload:
+        raise click.ClickException("Provide update JSON or at least one field to change.")
 
     with get_client() as client:
         response = client.patch(
-            f"/objects/{object}/attributes/{attribute}/statuses/{status_id}",
-            {"data": data},
+            _attribute_path(target, identifier, f"/{attribute}/statuses/{status_id}"),
+            {"data": payload},
         )
         output_one(response["data"], STATUS_COLUMNS, as_json)
 
