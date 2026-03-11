@@ -222,6 +222,31 @@ echo '{"name": "Acme Corp"}' | attio records create companies --json
 attio --llm
 ```
 
+## Development
+
+The repository now has a standard local verification workflow:
+
+```bash
+# Run the full test suite
+make test
+
+# Run lint, formatting, and type checks through pre-commit
+make check
+
+# Run the full local verification pass
+make verify
+```
+
+If you prefer not to use `make`, the underlying commands are:
+
+```bash
+uv run --with pytest pytest -q tests
+uvx pre-commit run --all-files
+uv run --with-editable . --with ty --with pytest ty check src tests
+uvx ruff check src tests
+uvx ruff format --check src tests
+```
+
 ## Commands
 
 | Command | Description |
