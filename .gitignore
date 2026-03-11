@@ -26,5 +26,8 @@ htmlcov/
 # Generated version file
 src/attio_cli/_version.py
 
+# uv lockfile
+uv.lock
+
 # Ruff cache
 .ruff_cache/
