@@ -15,12 +15,30 @@ The API key must be set via environment variable:
 export ATTIO_API_KEY="your-api-key"
 ```
 
+## First step
+
+Start by running:
+
+```bash
+attio --llm
+```
+
+That built-in guide is the source of truth for:
+- command inventory
+- identifier conventions
+- structured JSON input rules
+- common discovery and update workflows
+- known limitations
+
+Use `attio <group> --help` for exact signatures after reading `attio --llm`.
+
 ## Commands Reference
 
 ### Authentication
 
 ```bash
 attio whoami  # Verify API key and show workspace info
+attio --llm   # Print the built-in machine-oriented operating guide
 ```
 
 ### Records (people, companies, custom objects)
@@ -33,8 +51,9 @@ attio records list companies --limit 10
 # Retrieve a specific record
 attio records retrieve people <record-id>
 
-# Create a record (pipe JSON via stdin to avoid shell escaping)
+# Create a record (prefer stdin, --data, or --data-file)
 echo '{"email_addresses": ["john@example.com"], "name": "John Doe"}' | attio records create people
+attio records create people --data-file record.json
 
 # Update a record
 echo '{"name": "Jane Doe"}' | attio records update people <record-id>
@@ -51,6 +70,9 @@ attio lists list
 
 # Retrieve list details
 attio lists retrieve <list-slug>
+
+# Update a list
+attio lists update <list-slug> --data '{"name": "Enterprise Pipeline"}'
 
 # List entries in a list
 attio entries list <list-slug>
@@ -91,6 +113,9 @@ attio notes create --title "Meeting Notes" --parent-object people --parent-recor
 # List attributes for an object
 attio attributes list people
 
+# List attributes for a list
+attio attributes list <list-id> --target lists
+
 # Retrieve attribute details
 attio attributes retrieve people email_addresses
 
@@ -123,7 +148,9 @@ attio records list people --json | head -1 | jq '.id.record_id'
 
 ## Guidelines
 
-1. Always pipe JSON data via stdin to avoid shell escaping issues
-2. Record IDs and list IDs are UUIDs returned by the API
-3. Use object slugs: `people`, `companies`, or custom object slugs
-4. Delete operations are not available (by design for safety)
+1. Start with `attio --llm`, then use `attio <group> --help` for exact signatures
+2. Prefer `--json` when IDs or structured confirmation are needed
+3. Prefer stdin, `--data`, or `--data-file` for structured JSON payloads
+4. Record IDs and list IDs are UUIDs returned by the API
+5. Use object slugs: `people`, `companies`, or custom object slugs
+6. Delete operations are not available (by design for safety)

@@ -28,6 +28,9 @@ attio config set api-key "your-api-key"
 
 ```bash
 attio whoami
+
+# Print a machine-oriented usage guide for AI agents
+attio --llm
 ```
 
 ### Structured input
@@ -203,10 +206,14 @@ This CLI is designed to be usable by LLMs:
 2. **Structured input**: Use `--data`, `--data-file`, or piped stdin for JSON payloads
 3. **JSONL output**: Easy to parse programmatically
 4. **No delete operations**: Intentionally omitted for safety
+5. **Agent guide**: `attio --llm` prints a compact operating guide for AI agents
 
 ```bash
 # LLM-friendly: pipe JSON via stdin
 echo '{"name": "Acme Corp"}' | attio records create companies --json
+
+# Print the built-in agent guide
+attio --llm
 ```
 
 ## Commands
