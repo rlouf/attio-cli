@@ -37,7 +37,7 @@ attio whoami
 attio records list people
 
 # Get a specific record
-attio records get people <record-id>
+attio records retrieve people <record-id>
 
 # Create a record (JSON as argument)
 attio records create people '{"email_addresses": ["john@example.com"], "name": "John Doe"}'
@@ -50,6 +50,12 @@ attio records update people <record-id> '{"name": "Jane Doe"}'
 
 # Search records
 attio records search people "john"
+
+# List list entries linked to a record
+attio records entries people <record-id>
+
+# List values for a record attribute
+attio records values people <record-id> region
 ```
 
 ### Lists & Entries
@@ -58,11 +64,44 @@ attio records search people "john"
 # List all lists (pipelines)
 attio lists list
 
+# Update a list (JSON as argument or via stdin)
+attio lists update <list-id> '{"name": "Enterprise Pipeline"}'
+
 # List entries in a list
 attio entries list <list-slug>
 
 # Add a record to a list
 attio entries create <list-slug> --record-id <record-id>
+
+# List values for a list entry attribute
+attio entries values <list-slug> <entry-id> status
+```
+
+### Attributes
+
+```bash
+# List attributes for an object
+attio attributes list people
+
+# List attributes for a list
+attio attributes list <list-id> --target lists
+
+# Create an attribute with flags
+attio attributes create people --title "Region" --type select --slug region
+
+# Create an attribute with raw JSON
+echo '{"title": "Stage", "type": "status", "api_slug": "stage"}' | attio attributes create <list-id> --target lists
+
+# Update an attribute
+attio attributes update people region --title "Sales Region" --slug sales_region
+
+# List attribute options or statuses, including archived values
+attio attributes options people region --show-archived
+attio attributes statuses <list-id> stage --target lists --show-archived
+
+# Update an option or status with richer payloads
+attio attributes update-option people region <option-id> --archived true
+attio attributes update-status <list-id> stage <status-id> --target lists --celebration-enabled true
 ```
 
 ### Tasks
@@ -132,7 +171,7 @@ echo '{"name": "Acme Corp"}' | attio records create companies --json
 | `attio entries` | Manage list entries |
 | `attio tasks` | Manage tasks |
 | `attio notes` | Manage notes |
-| `attio attributes` | Manage object attributes |
+| `attio attributes` | Manage object and list attributes |
 | `attio members` | List workspace members |
 | `attio webhooks` | Manage webhooks |
 
