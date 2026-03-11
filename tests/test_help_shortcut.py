@@ -1,26 +1,24 @@
 from unittest.mock import patch
 
-from click.testing import CliRunner
-
 from attio_cli.main import cli
 
 
-def test_root_help_supports_short_flag():
-    result = CliRunner().invoke(cli, ["-h"])
+def test_root_help_supports_short_flag(runner):
+    result = runner.invoke(cli, ["-h"])
 
     assert result.exit_code == 0
     assert "Usage: cli [OPTIONS] COMMAND [ARGS]..." in result.output
 
 
-def test_group_help_supports_short_flag():
-    result = CliRunner().invoke(cli, ["records", "-h"])
+def test_group_help_supports_short_flag(runner):
+    result = runner.invoke(cli, ["records", "-h"])
 
     assert result.exit_code == 0
     assert "Usage: cli records [OPTIONS] COMMAND [ARGS]..." in result.output
 
 
-def test_root_help_hides_banner_for_non_tty():
-    result = CliRunner().invoke(cli, ["--help"])
+def test_root_help_hides_banner_for_non_tty(runner):
+    result = runner.invoke(cli, ["--help"])
 
     assert result.exit_code == 0
     assert "A CLI for Attio" not in result.output
@@ -37,9 +35,7 @@ def test_root_help_hides_banner_for_non_tty():
     assert config_index < records_index < objects_index < members_index
 
 
-def test_root_help_shows_banner_for_tty():
-    runner = CliRunner()
-
+def test_root_help_shows_banner_for_tty(runner):
     with patch("attio_cli.cli_core.should_show_banner", return_value=True):
         result = runner.invoke(cli, ["--help"], color=False)
 
@@ -48,8 +44,8 @@ def test_root_help_shows_banner_for_tty():
     assert "@@@@@@@@@." in result.output
 
 
-def test_root_llm_flag_prints_machine_guide():
-    result = CliRunner().invoke(cli, ["--llm"])
+def test_root_llm_flag_prints_machine_guide(runner):
+    result = runner.invoke(cli, ["--llm"])
 
     assert result.exit_code == 0
     assert "ATTIO CLI LLM GUIDE" in result.output
@@ -60,8 +56,8 @@ def test_root_llm_flag_prints_machine_guide():
     assert "Delete operations are intentionally not implemented in this CLI." in result.output
 
 
-def test_examples_are_shown_for_annotated_command_help():
-    result = CliRunner().invoke(cli, ["records", "create", "--help"])
+def test_examples_are_shown_for_annotated_command_help(runner):
+    result = runner.invoke(cli, ["records", "create", "--help"])
 
     assert result.exit_code == 0
     assert "Examples:" in result.output
@@ -69,8 +65,8 @@ def test_examples_are_shown_for_annotated_command_help():
     assert 'echo \'{"name": "Jane Doe"' in result.output
 
 
-def test_examples_are_shown_for_complex_attribute_command_help():
-    result = CliRunner().invoke(cli, ["attributes", "update-status", "--help"])
+def test_examples_are_shown_for_complex_attribute_command_help(runner):
+    result = runner.invoke(cli, ["attributes", "update-status", "--help"])
 
     assert result.exit_code == 0
     assert "Examples:" in result.output
@@ -78,8 +74,8 @@ def test_examples_are_shown_for_complex_attribute_command_help():
     assert "--target-time-in-status-file target-time.json" in result.output
 
 
-def test_non_annotated_help_does_not_show_examples_section():
-    result = CliRunner().invoke(cli, ["records", "retrieve", "--help"])
+def test_non_annotated_help_does_not_show_examples_section(runner):
+    result = runner.invoke(cli, ["records", "retrieve", "--help"])
 
     assert result.exit_code == 0
     assert "Examples:" not in result.output

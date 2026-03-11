@@ -1,32 +1,13 @@
 import os
 from unittest.mock import patch
 
-from click.testing import CliRunner
-
 from attio_cli import config
 from attio_cli.main import cli
 
 
-class FakeKeyring:
-    def __init__(self, initial=None, fail_set=False):
-        self.store = initial or {}
-        self.fail_set = fail_set
-
-    def get_password(self, service, username):
-        return self.store.get((service, username))
-
-    def set_password(self, service, username, password):
-        if self.fail_set:
-            raise RuntimeError("keychain unavailable")
-        self.store[(service, username)] = password
-
-    def delete_password(self, service, username):
-        self.store.pop((service, username), None)
-
-
-def test_resolve_auth_state_prefers_environment(tmp_path):
+def test_resolve_auth_state_prefers_environment(tmp_path, fake_keyring_factory):
     cfg_home = tmp_path / "xdg"
-    fake_keyring = FakeKeyring(
+    fake_keyring = fake_keyring_factory(
         initial={(config.KEYRING_SERVICE, config.KEYRING_USERNAME): "keychain-key"}
     )
 
@@ -43,9 +24,9 @@ def test_resolve_auth_state_prefers_environment(tmp_path):
     assert auth_state.source == config.AUTH_SOURCE_ENV
 
 
-def test_set_api_key_prefers_keychain_and_clears_config_fallback(tmp_path):
+def test_set_api_key_prefers_keychain_and_clears_config_fallback(tmp_path, fake_keyring_factory):
     cfg_home = tmp_path / "xdg"
-    fake_keyring = FakeKeyring()
+    fake_keyring = fake_keyring_factory()
 
     with patch.dict(os.environ, {"XDG_CONFIG_HOME": str(cfg_home)}, clear=True):
         config.save_config({"api_key": "old-file-key"})
@@ -70,15 +51,15 @@ def test_set_api_key_falls_back_to_config_when_keychain_unavailable(tmp_path):
         assert config.load_config()["api_key"] == "file-key"
 
 
-def test_config_show_reports_auth_source_and_storage(tmp_path):
+def test_config_show_reports_auth_source_and_storage(tmp_path, fake_keyring_factory, runner):
     cfg_home = tmp_path / "xdg"
-    fake_keyring = FakeKeyring(
+    fake_keyring = fake_keyring_factory(
         initial={(config.KEYRING_SERVICE, config.KEYRING_USERNAME): "saved-key"}
     )
 
     with patch.dict(os.environ, {"XDG_CONFIG_HOME": str(cfg_home)}, clear=True):
         with patch("attio_cli.config.keyring", fake_keyring):
-            result = CliRunner().invoke(cli, ["config", "show"])
+            result = runner.invoke(cli, ["config", "show"])
 
     assert result.exit_code == 0
     assert "Auth source: system keychain" in result.output
@@ -86,13 +67,13 @@ def test_config_show_reports_auth_source_and_storage(tmp_path):
     assert "API key: saved-ke...-key" in result.output
 
 
-def test_config_login_saves_to_keychain(tmp_path):
+def test_config_login_saves_to_keychain(tmp_path, fake_keyring_factory, runner):
     cfg_home = tmp_path / "xdg"
-    fake_keyring = FakeKeyring()
+    fake_keyring = fake_keyring_factory()
 
     with patch.dict(os.environ, {"XDG_CONFIG_HOME": str(cfg_home)}, clear=True):
         with patch("attio_cli.config.keyring", fake_keyring):
-            result = CliRunner().invoke(cli, ["config", "login", "secret-key"])
+            result = runner.invoke(cli, ["config", "login", "secret-key"])
 
     assert result.exit_code == 0
     assert "API key saved to system keychain." in result.output
@@ -101,9 +82,13 @@ def test_config_login_saves_to_keychain(tmp_path):
     )
 
 
-def test_config_logout_removes_saved_key_and_mentions_environment_override(tmp_path):
+def test_config_logout_removes_saved_key_and_mentions_environment_override(
+    tmp_path,
+    fake_keyring_factory,
+    runner,
+):
     cfg_home = tmp_path / "xdg"
-    fake_keyring = FakeKeyring(
+    fake_keyring = fake_keyring_factory(
         initial={(config.KEYRING_SERVICE, config.KEYRING_USERNAME): "saved-key"}
     )
 
@@ -113,7 +98,7 @@ def test_config_logout_removes_saved_key_and_mentions_environment_override(tmp_p
         clear=True,
     ):
         with patch("attio_cli.config.keyring", fake_keyring):
-            result = CliRunner().invoke(cli, ["config", "logout"])
+            result = runner.invoke(cli, ["config", "logout"])
 
     assert result.exit_code == 0
     assert "Removed saved API key from system keychain." in result.output
