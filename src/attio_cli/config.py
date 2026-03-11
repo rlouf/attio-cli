@@ -1,15 +1,16 @@
 """Configuration management for Attio CLI."""
 
+import importlib
+import importlib.util
 import json
 import os
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
-try:
-    import keyring
-except ImportError:  # pragma: no cover - optional dependency at runtime
-    keyring = None
+keyring: Any = (
+    importlib.import_module("keyring") if importlib.util.find_spec("keyring") is not None else None
+)
 
 KEYRING_SERVICE = "attio-cli"
 KEYRING_USERNAME = "default"

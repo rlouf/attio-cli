@@ -1,6 +1,7 @@
 """Main CLI entry point."""
 
 import os
+from typing import Any
 
 import click
 
@@ -14,7 +15,7 @@ from attio_cli.config import (
     resolve_auth_state,
     set_api_key,
 )
-from attio_cli.output import get_json_input, output_many, output_one
+from attio_cli.output import ColumnSpec, Row, get_json_input, output_many, output_one
 
 
 def get_client() -> AttioClient:
@@ -26,38 +27,38 @@ def get_client() -> AttioClient:
 
 
 # Column definitions for different types
-IDENTITY_COLUMNS = [
+IDENTITY_COLUMNS: list[ColumnSpec] = [
     ("WORKSPACE", lambda x: x.get("workspace", {}).get("name", "-")),
     ("WORKSPACE ID", lambda x: x.get("workspace", {}).get("id", {}).get("workspace_id", "-")),
     ("ACCESS TYPE", lambda x: x.get("access_type", "-")),
 ]
 
-OBJECT_COLUMNS = [
+OBJECT_COLUMNS: list[ColumnSpec] = [
     ("SLUG", lambda x: x.get("api_slug", "-")),
     ("SINGULAR", lambda x: x.get("singular_noun", "-")),
     ("PLURAL", lambda x: x.get("plural_noun", "-")),
     ("ID", lambda x: x.get("id", {}).get("object_id", "-")),
 ]
 
-RECORD_COLUMNS = [
+RECORD_COLUMNS: list[ColumnSpec] = [
     ("ID", lambda x: x.get("id", {}).get("record_id", "-")),
     ("NAME", lambda x: _extract_name(x.get("values", {}))),
     ("VALUES", lambda x: _truncate(str(x.get("values", {})), 60)),
 ]
 
-SEARCH_COLUMNS = [
+SEARCH_COLUMNS: list[ColumnSpec] = [
     ("RECORD ID", lambda x: x.get("id", {}).get("record_id", "-")),
     ("OBJECT", lambda x: x.get("object_slug", "-")),
     ("TEXT", lambda x: x.get("record_text", "-")),
 ]
 
-RECORD_ENTRY_COLUMNS = [
+RECORD_ENTRY_COLUMNS: list[ColumnSpec] = [
     ("ENTRY ID", lambda x: x.get("entry_id", "-")),
     ("LIST", lambda x: x.get("list_api_slug", "-")),
     ("LIST ID", lambda x: x.get("list_id", "-")),
 ]
 
-LIST_COLUMNS = [
+LIST_COLUMNS: list[ColumnSpec] = [
     ("SLUG", lambda x: x.get("api_slug", "-")),
     ("NAME", lambda x: x.get("name", "-")),
     (
@@ -67,20 +68,20 @@ LIST_COLUMNS = [
     ("ID", lambda x: x.get("id", {}).get("list_id", "-")),
 ]
 
-ENTRY_COLUMNS = [
+ENTRY_COLUMNS: list[ColumnSpec] = [
     ("ENTRY ID", lambda x: x.get("id", {}).get("entry_id", "-")),
     ("RECORD ID", lambda x: x.get("parent_record_id", "-")),
     ("VALUES", lambda x: _truncate(str(x.get("entry_values", {})), 60)),
 ]
 
-TASK_COLUMNS = [
+TASK_COLUMNS: list[ColumnSpec] = [
     ("ID", lambda x: x.get("id", {}).get("task_id", "-")),
     ("CONTENT", lambda x: _truncate(x.get("content_plaintext", ""), 50)),
     ("COMPLETED", lambda x: "Y" if x.get("is_completed") else ""),
     ("DEADLINE", lambda x: x.get("deadline_at", "-") or "-"),
 ]
 
-NOTE_COLUMNS = [
+NOTE_COLUMNS: list[ColumnSpec] = [
     ("ID", lambda x: x.get("id", {}).get("note_id", "-")),
     ("TITLE", lambda x: x.get("title", "-") or "-"),
     (
@@ -92,7 +93,7 @@ NOTE_COLUMNS = [
     ("CREATED", lambda x: (x.get("created_at", "") or "")[:10] or "-"),
 ]
 
-ATTRIBUTE_COLUMNS = [
+ATTRIBUTE_COLUMNS: list[ColumnSpec] = [
     ("SLUG", lambda x: x.get("api_slug", "-")),
     ("TITLE", lambda x: x.get("title", "-")),
     ("TYPE", lambda x: x.get("type", "-")),
@@ -100,33 +101,33 @@ ATTRIBUTE_COLUMNS = [
     ("MULTISELECT", lambda x: "Y" if x.get("is_multiselect") else ""),
 ]
 
-OPTION_COLUMNS = [
+OPTION_COLUMNS: list[ColumnSpec] = [
     ("ID", lambda x: x.get("id", {}).get("option_id", "-")),
     ("TITLE", lambda x: x.get("title", "-")),
     ("ARCHIVED", lambda x: "Y" if x.get("is_archived") else ""),
 ]
 
-STATUS_COLUMNS = [
+STATUS_COLUMNS: list[ColumnSpec] = [
     ("ID", lambda x: x.get("id", {}).get("status_id", "-")),
     ("TITLE", lambda x: x.get("title", "-")),
     ("ARCHIVED", lambda x: "Y" if x.get("is_archived") else ""),
 ]
 
-ATTRIBUTE_VALUE_COLUMNS = [
+ATTRIBUTE_VALUE_COLUMNS: list[ColumnSpec] = [
     ("ACTIVE FROM", lambda x: x.get("active_from", "-") or "-"),
     ("ACTIVE UNTIL", lambda x: x.get("active_until", "-") or "-"),
     ("TYPE", lambda x: x.get("attribute_type", "-") or "-"),
     ("VALUE", lambda x: _summarize_value(x)),
 ]
 
-MEMBER_COLUMNS = [
+MEMBER_COLUMNS: list[ColumnSpec] = [
     ("ID", lambda x: x.get("id", {}).get("workspace_member_id", "-")),
     ("NAME", lambda x: f"{x.get('first_name', '')} {x.get('last_name', '')}".strip() or "-"),
     ("EMAIL", lambda x: x.get("email_address", "-") or "-"),
     ("ACCESS", lambda x: x.get("access_level", "-") or "-"),
 ]
 
-WEBHOOK_COLUMNS = [
+WEBHOOK_COLUMNS: list[ColumnSpec] = [
     ("ID", lambda x: x.get("id", {}).get("webhook_id", "-")),
     ("TARGET URL", lambda x: x.get("target_url", "-")),
     ("STATUS", lambda x: x.get("status", "-") or "-"),
@@ -137,7 +138,7 @@ WEBHOOK_COLUMNS = [
 ]
 
 
-def _extract_name(values: dict) -> str:
+def _extract_name(values: Row) -> str:
     """Extract a display name from record values."""
     for field in ["name", "full_name", "first_name", "title", "email_addresses"]:
         if field in values:
@@ -160,7 +161,7 @@ def _truncate(s: str, length: int) -> str:
     return s[:length] + "..." if len(s) > length else s
 
 
-def _summarize_value(item: dict) -> str:
+def _summarize_value(item: Row) -> str:
     """Summarize an attribute value payload for table output."""
     metadata_keys = {
         "active_from",
@@ -335,40 +336,40 @@ TOP_LEVEL_COMMAND_GROUPS = [
 ]
 
 RECORDS_CREATE_EXAMPLES = [
-    "attio records create people --data '{\"name\": \"Jane Doe\"}'",
-    "echo '{\"name\": \"Jane Doe\", \"email_addresses\": [\"jane@example.com\"]}' | attio records create people",
+    'attio records create people --data \'{"name": "Jane Doe"}\'',
+    'echo \'{"name": "Jane Doe", "email_addresses": ["jane@example.com"]}\' | attio records create people',
 ]
 RECORDS_UPDATE_EXAMPLES = [
-    "attio records update people <record-id> --data '{\"region\": \"EMEA\"}'",
+    'attio records update people <record-id> --data \'{"region": "EMEA"}\'',
     "attio records update people <record-id> --data-file record-update.json --overwrite",
 ]
 ENTRIES_CREATE_EXAMPLES = [
     "attio entries create <list-id> --record-id <record-id>",
-    "attio entries create <list-id> --record-id <record-id> --data '{\"status\": \"active\"}'",
+    'attio entries create <list-id> --record-id <record-id> --data \'{"status": "active"}\'',
 ]
 ENTRIES_UPDATE_EXAMPLES = [
-    "attio entries update <list-id> <entry-id> --data '{\"status\": \"qualified\"}'",
+    'attio entries update <list-id> <entry-id> --data \'{"status": "qualified"}\'',
     "attio entries update <list-id> <entry-id> --data-file entry-update.json --overwrite",
 ]
 ATTRIBUTES_CREATE_EXAMPLES = [
-    "attio attributes create people --title \"Region\" --type select --slug region",
+    'attio attributes create people --title "Region" --type select --slug region',
     "attio attributes create <list-id> --target lists --data-file attribute.json",
 ]
 ATTRIBUTES_UPDATE_EXAMPLES = [
-    "attio attributes update people region --title \"Sales Region\"",
-    "attio attributes update <list-id> stage --target lists --data '{\"description\": \"Pipeline stage\"}'",
+    'attio attributes update people region --title "Sales Region"',
+    'attio attributes update <list-id> stage --target lists --data \'{"description": "Pipeline stage"}\'',
 ]
 ATTRIBUTES_ADD_STATUS_EXAMPLES = [
-    "attio attributes add-status <list-id> stage --target lists --title \"Qualified\"",
+    'attio attributes add-status <list-id> stage --target lists --title "Qualified"',
     "attio attributes add-status <list-id> stage --target lists --data-file status.json --target-time-in-status-file target-time.json",
 ]
 ATTRIBUTES_UPDATE_STATUS_EXAMPLES = [
-    "attio attributes update-status <list-id> stage <status-id> --target lists --title \"Proposal\"",
+    'attio attributes update-status <list-id> stage <status-id> --target lists --title "Proposal"',
     "attio attributes update-status <list-id> stage <status-id> --target lists --archived true --target-time-in-status-file target-time.json",
 ]
 TASKS_CREATE_EXAMPLES = [
-    "attio tasks create \"Follow up with client\" --deadline \"2026-03-12T10:00:00Z\"",
-    "attio tasks create \"Prep QBR\" --assignees-file assignees.json --linked-records-file linked-records.json",
+    'attio tasks create "Follow up with client" --deadline "2026-03-12T10:00:00Z"',
+    'attio tasks create "Prep QBR" --assignees-file assignees.json --linked-records-file linked-records.json',
 ]
 
 
@@ -761,7 +762,7 @@ def records_update(
 @click.option("--json", "as_json", is_flag=True, help="Output as JSONL")
 def records_search(object: str, query: str, limit: int, as_json: bool):
     """Search records."""
-    body = {"query": query, "objects": [object]}
+    body: dict[str, Any] = {"query": query, "objects": [object]}
     if limit:
         body["limit"] = limit
 
@@ -1286,13 +1287,16 @@ def attributes_create(
     as_json: bool,
 ):
     """Create a new attribute."""
-    payload = get_json_input(
-        data,
-        data=data_json,
-        data_file=data_file,
-        required=False,
-        context="attribute JSON",
-    ) or {}
+    payload = (
+        get_json_input(
+            data,
+            data=data_json,
+            data_file=data_file,
+            required=False,
+            context="attribute JSON",
+        )
+        or {}
+    )
     if title is not None:
         payload["title"] = title
     if attr_type is not None:
@@ -1338,13 +1342,16 @@ def attributes_update(
     as_json: bool,
 ):
     """Update an attribute."""
-    payload = get_json_input(
-        data,
-        data=data_json,
-        data_file=data_file,
-        required=False,
-        context="attribute update JSON",
-    ) or {}
+    payload = (
+        get_json_input(
+            data,
+            data=data_json,
+            data_file=data_file,
+            required=False,
+            context="attribute update JSON",
+        )
+        or {}
+    )
     if title:
         payload["title"] = title
     if slug:
@@ -1372,7 +1379,9 @@ def attributes_update(
 )
 @click.option("--show-archived", is_flag=True, help="Include archived options")
 @click.option("--json", "as_json", is_flag=True, help="Output as JSONL")
-def attributes_options(identifier: str, attribute: str, target: str, show_archived: bool, as_json: bool):
+def attributes_options(
+    identifier: str, attribute: str, target: str, show_archived: bool, as_json: bool
+):
     """List select options for an attribute."""
     params = {"show_archived": "true"} if show_archived else None
     with get_client() as client:
@@ -1409,13 +1418,16 @@ def attributes_add_option(
     as_json: bool,
 ):
     """Add a select option."""
-    payload = get_json_input(
-        data,
-        data=data_json,
-        data_file=data_file,
-        required=False,
-        context="option JSON",
-    ) or {}
+    payload = (
+        get_json_input(
+            data,
+            data=data_json,
+            data_file=data_file,
+            required=False,
+            context="option JSON",
+        )
+        or {}
+    )
     if title is not None:
         payload["title"] = title
     if not payload:
@@ -1459,13 +1471,16 @@ def attributes_update_option(
     as_json: bool,
 ):
     """Update a select option."""
-    payload = get_json_input(
-        data,
-        data=data_json,
-        data_file=data_file,
-        required=False,
-        context="option update JSON",
-    ) or {}
+    payload = (
+        get_json_input(
+            data,
+            data=data_json,
+            data_file=data_file,
+            required=False,
+            context="option update JSON",
+        )
+        or {}
+    )
     if title:
         payload["title"] = title
     if archived is not None:
@@ -1545,13 +1560,16 @@ def attributes_add_status(
     as_json: bool,
 ):
     """Add a status option."""
-    payload = get_json_input(
-        data,
-        data=data_json,
-        data_file=data_file,
-        required=False,
-        context="status JSON",
-    ) or {}
+    payload = (
+        get_json_input(
+            data,
+            data=data_json,
+            data_file=data_file,
+            required=False,
+            context="status JSON",
+        )
+        or {}
+    )
     if title is not None:
         payload["title"] = title
     if celebration_enabled is not None:
@@ -1619,13 +1637,16 @@ def attributes_update_status(
     as_json: bool,
 ):
     """Update a status option."""
-    payload = get_json_input(
-        data,
-        data=data_json,
-        data_file=data_file,
-        required=False,
-        context="status update JSON",
-    ) or {}
+    payload = (
+        get_json_input(
+            data,
+            data=data_json,
+            data_file=data_file,
+            required=False,
+            context="status update JSON",
+        )
+        or {}
+    )
     if title:
         payload["title"] = title
     if archived is not None:

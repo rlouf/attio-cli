@@ -8,6 +8,9 @@ from rich.console import Console
 from rich.table import Table
 
 console = Console()
+Row = dict[str, Any]
+ColumnExtractor = Callable[[Row], str]
+ColumnSpec = tuple[str, ColumnExtractor]
 
 
 def print_json(data: Any) -> None:
@@ -22,8 +25,8 @@ def print_jsonl(items: list[Any]) -> None:
 
 
 def print_table(
-    items: list[dict],
-    columns: list[tuple[str, Callable[[dict], str]]],
+    items: list[Row],
+    columns: list[ColumnSpec],
 ) -> None:
     """Print items as a table.
 
@@ -47,16 +50,16 @@ def print_table(
 
 
 def print_single_table(
-    item: dict,
-    columns: list[tuple[str, Callable[[dict], str]]],
+    item: Row,
+    columns: list[ColumnSpec],
 ) -> None:
     """Print a single item as a table."""
     print_table([item], columns)
 
 
 def output_many(
-    items: list[dict],
-    columns: list[tuple[str, Callable[[dict], str]]],
+    items: list[Row],
+    columns: list[ColumnSpec],
     as_json: bool = False,
 ) -> None:
     """Output multiple items (table or JSONL)."""
@@ -67,8 +70,8 @@ def output_many(
 
 
 def output_one(
-    item: dict,
-    columns: list[tuple[str, Callable[[dict], str]]],
+    item: Row,
+    columns: list[ColumnSpec],
     as_json: bool = False,
 ) -> None:
     """Output a single item (table or JSON)."""

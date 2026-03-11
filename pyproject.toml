@@ -60,3 +60,5 @@ ignore = [
 
 [tool.ruff.format]
 quote-style = "double"
+
+[tool.ty]

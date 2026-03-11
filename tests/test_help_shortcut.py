@@ -66,7 +66,7 @@ def test_examples_are_shown_for_annotated_command_help():
     assert result.exit_code == 0
     assert "Examples:" in result.output
     assert "attio records create people --data" in result.output
-    assert "echo '{\"name\": \"Jane Doe\"" in result.output
+    assert 'echo \'{"name": "Jane Doe"' in result.output
 
 
 def test_examples_are_shown_for_complex_attribute_command_help():

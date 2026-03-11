@@ -96,7 +96,9 @@ def test_config_login_saves_to_keychain(tmp_path):
 
     assert result.exit_code == 0
     assert "API key saved to system keychain." in result.output
-    assert fake_keyring.get_password(config.KEYRING_SERVICE, config.KEYRING_USERNAME) == "secret-key"
+    assert (
+        fake_keyring.get_password(config.KEYRING_SERVICE, config.KEYRING_USERNAME) == "secret-key"
+    )
 
 
 def test_config_logout_removes_saved_key_and_mentions_environment_override(tmp_path):
@@ -115,4 +117,7 @@ def test_config_logout_removes_saved_key_and_mentions_environment_override(tmp_p
 
     assert result.exit_code == 0
     assert "Removed saved API key from system keychain." in result.output
-    assert "ATTIO_API_KEY is still set in the environment and will continue to be used." in result.output
+    assert (
+        "ATTIO_API_KEY is still set in the environment and will continue to be used."
+        in result.output
+    )
