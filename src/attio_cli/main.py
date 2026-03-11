@@ -5,7 +5,7 @@ import os
 import click
 
 from attio_cli import __version__
-from attio_cli.client import AttioClient
+from attio_cli.client import AUTH_SETUP_HINT, AttioClient, AttioError
 from attio_cli.config import get_api_key, get_config_path, load_config, set_api_key
 from attio_cli.output import get_json_input, output_many, output_one
 
@@ -14,9 +14,7 @@ def get_client() -> AttioClient:
     """Get an authenticated API client."""
     api_key = get_api_key()
     if not api_key:
-        raise click.ClickException(
-            "No API key configured. Set ATTIO_API_KEY or run: attio config set api-key <key>"
-        )
+        raise click.ClickException(f"No API key configured. {AUTH_SETUP_HINT}")
     return AttioClient(api_key)
 
 
@@ -349,6 +347,13 @@ def _should_show_banner(ctx: click.Context) -> bool:
 
 class AttioGroup(click.Group):
     """Click group with a banner on root help output."""
+
+    def invoke(self, ctx: click.Context) -> object:
+        """Normalize API errors into consistent Click-style CLI output."""
+        try:
+            return super().invoke(ctx)
+        except AttioError as exc:
+            raise click.ClickException(exc.format_for_cli()) from None
 
     def get_help(self, ctx: click.Context) -> str:
         """Render help output, prefixing the banner for interactive root help."""

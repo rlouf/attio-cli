@@ -53,7 +53,7 @@ def test_root_llm_flag_prints_machine_guide():
 
     assert result.exit_code == 0
     assert "ATTIO CLI LLM GUIDE" in result.output
-    assert "Structured JSON input:" in result.output
+    assert "Structured JSON input precedence:" in result.output
     assert "Identifier conventions:" in result.output
     assert "Command inventory:" in result.output
     assert "records: list, retrieve, create, update, search, entries, values" in result.output
