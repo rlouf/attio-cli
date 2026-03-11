@@ -421,6 +421,18 @@ def lists_retrieve(list_id: str, as_json: bool):
         output_one(response["data"], LIST_COLUMNS, as_json)
 
 
+@lists.command("update")
+@click.argument("list_id")
+@click.argument("data", required=False)
+@click.option("--json", "as_json", is_flag=True, help="Output as JSON")
+def lists_update(list_id: str, data: str, as_json: bool):
+    """Update a list."""
+    payload = get_json_input(data)
+    with get_client() as client:
+        response = client.patch(f"/lists/{list_id}", {"data": payload})
+        output_one(response["data"], LIST_COLUMNS, as_json)
+
+
 # ============== Entries Commands ==============
 
 
