@@ -1,5 +1,7 @@
 """Main CLI entry point."""
 
+import os
+
 import click
 
 from attio_cli import __version__
@@ -171,10 +173,59 @@ def _attribute_path(target: str, identifier: str, suffix: str = "") -> str:
     return f"{base}{suffix}"
 
 
+BANNER_LINES = [
+    "               @@@@@@@@@.",
+    "             @@@@@@@@@.%#",
+    "           .@@@@@@@@@   :@",
+    "          =@@@@@@@@@      @",
+    "         @@@@@@@@@@       @",
+    "        @@@@@@@@@*      -@",
+    "       @@@@@@@@@.      %*",
+    "      @@@@@@@@@       @. @@@@@@*",
+    "    :@@@@@@@@@       @  @@@@@@: @",
+    "   %@@@@@@@@@       @  @@@@@@    @",
+    "  @@@@@@@@@%      .@ .@@@@@@      @",
+    "  %@@@@@@@@@     #@ +@@@@@@@      @",
+    "   .@@@@@@@@@   @:  @@@@@@@@@:  .@",
+    "     @@@@@@@@@ @     @@@@@@@@@*+@",
+    "      %@@@@@@@@       .@@@@@@@@.",
+]
+BANNER_WORDMARK = "A CLI for Attio"
+
+
+def _render_banner() -> str:
+    """Render the help banner with a centered wordmark."""
+    width = max(len(line) for line in BANNER_LINES)
+    wordmark = BANNER_WORDMARK.center(width)
+    return "\n".join([*BANNER_LINES, "", wordmark])
+
+
+def _should_show_banner(ctx: click.Context) -> bool:
+    """Show the banner only for root help in interactive terminals."""
+    if ctx.parent is not None:
+        return False
+    if os.environ.get("ATTIO_NO_BANNER") == "1":
+        return False
+
+    stream = click.get_text_stream("stdout")
+    return hasattr(stream, "isatty") and stream.isatty()
+
+
+class AttioGroup(click.Group):
+    """Click group with a banner on root help output."""
+
+    def get_help(self, ctx: click.Context) -> str:
+        """Render help output, prefixing the banner for interactive root help."""
+        help_text = super().get_help(ctx)
+        if not _should_show_banner(ctx):
+            return help_text
+        return f"{_render_banner()}\n\n{help_text}"
+
+
 CLI_CONTEXT_SETTINGS = {"help_option_names": ["-h", "--help"]}
 
 
-@click.group(context_settings=CLI_CONTEXT_SETTINGS)
+@click.group(cls=AttioGroup, context_settings=CLI_CONTEXT_SETTINGS)
 @click.version_option(version=__version__)
 def cli():
     """CLI for interacting with Attio CRM API."""
