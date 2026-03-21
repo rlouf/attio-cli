@@ -185,6 +185,9 @@ attio notes list --parent-object people --parent-record-id <record-id>
 
 # Create a note
 attio notes create --title "Meeting Notes" --parent-object people --parent-record-id <record-id>
+
+# Update a note
+attio notes update <note-id> --title "Dotty Research" --content "Updated note body"
 ```
 
 ## Output Formats

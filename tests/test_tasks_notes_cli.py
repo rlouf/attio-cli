@@ -197,3 +197,39 @@ def test_notes_create_shapes_request_body(runner, recording_client_factory, patc
             },
         }
     ]
+
+
+def test_notes_update_shapes_patch_body(runner, recording_client_factory, patch_command_clients):
+    client = recording_client_factory()
+    client.queue_response("PATCH", "/notes/note_1", {"data": {"id": {"note_id": "note_1"}}})
+    patch_command_clients(client)
+
+    result = runner.invoke(
+        cli,
+        [
+            "notes",
+            "update",
+            "note_1",
+            "--title",
+            "Dotty Research",
+            "--content",
+            "Last updated: 2026-03-21",
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert client.calls == [
+        {
+            "method": "PATCH",
+            "path": "/notes/note_1",
+            "params": None,
+            "json": {
+                "data": {
+                    "title": "Dotty Research",
+                    "content": "Last updated: 2026-03-21",
+                    "format": "plaintext",
+                }
+            },
+        }
+    ]

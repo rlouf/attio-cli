@@ -69,3 +69,22 @@ def notes_create(
     with get_client() as client:
         response = client.post("/notes", {"data": data})
         output_one(response["data"], NOTE_COLUMNS, as_json)
+
+
+@notes.command("update")
+@click.argument("note_id")
+@click.option("--title", help="Note title")
+@click.option("--content", help="Note content")
+@click.option("--json", "as_json", is_flag=True, help="Output as JSON")
+def notes_update(note_id: str, title: str, content: str, as_json: bool) -> None:
+    """Update a note."""
+    data = {}
+    if title is not None:
+        data["title"] = title
+    if content is not None:
+        data["content"] = content
+        data["format"] = "plaintext"
+
+    with get_client() as client:
+        response = client.patch(f"/notes/{note_id}", {"data": data})
+        output_one(response["data"], NOTE_COLUMNS, as_json)
