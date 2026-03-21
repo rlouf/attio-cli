@@ -61,7 +61,7 @@ def notes_create(
         "parent_object": parent_object,
         "parent_record_id": parent_record_id,
         "title": title,
-        "format": "plaintext",
+        "format": "markdown",
     }
     if content:
         data["content"] = content
@@ -83,7 +83,7 @@ def notes_update(note_id: str, title: str, content: str, as_json: bool) -> None:
         data["title"] = title
     if content is not None:
         data["content"] = content
-        data["format"] = "plaintext"
+        data["format"] = "markdown"
 
     with get_client() as client:
         response = client.patch(f"/notes/{note_id}", {"data": data})

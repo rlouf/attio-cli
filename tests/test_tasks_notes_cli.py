@@ -191,7 +191,7 @@ def test_notes_create_shapes_request_body(runner, recording_client_factory, patc
                     "parent_object": "people",
                     "parent_record_id": "rec_1",
                     "title": "Meeting Notes",
-                    "format": "plaintext",
+                    "format": "markdown",
                     "content": "Discussion points",
                 }
             },
@@ -228,7 +228,7 @@ def test_notes_update_shapes_patch_body(runner, recording_client_factory, patch_
                 "data": {
                     "title": "Dotty Research",
                     "content": "Last updated: 2026-03-21",
-                    "format": "plaintext",
+                    "format": "markdown",
                 }
             },
         }
